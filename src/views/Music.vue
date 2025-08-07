@@ -409,6 +409,7 @@ const deleteMusic = async (music) => {
       ElMessage.success('删除成功')
       await loadMusicList()
     } else {
+      // 根据API文档的错误信息进行处理
       if (response.message?.includes('歌曲信息不存在')) {
         ElMessage.error('该音乐不存在或已被删除')
         await loadMusicList() // 刷新列表以同步状态
@@ -492,7 +493,7 @@ onMounted(() => {
 }
 
 .sidebar {
-  width: 240px;
+  width: 180px;
   background: #fff;
   border-right: 1px solid #e6e8eb;
   padding: 16px 0;

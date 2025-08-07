@@ -24,7 +24,7 @@
 
       <el-container>
         <!-- 侧边栏 -->
-        <el-aside width="200px" class="sidebar">
+        <el-aside width="160px" class="sidebar">
           <el-menu
             :default-active="$route.path"
             router

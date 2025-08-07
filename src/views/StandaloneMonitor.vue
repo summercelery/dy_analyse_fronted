@@ -32,7 +32,7 @@
           <label style="display: block; margin-bottom: 5px; font-weight: bold;">音乐ID:</label>
           <input 
             v-model="musicId" 
-            placeholder="请输入音乐ID（可选）" 
+            placeholder="请输入音乐ID（必填）" 
             style="width: 150px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
           />
         </div>
@@ -80,8 +80,9 @@
               <tr style="background: #f8f9fa;">
                 <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">视频ID</th>
                 <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">视频链接</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">播主名称</th>
                 <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">状态</th>
-                <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">创建时间</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">发布时间</th>
                 <th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">操作</th>
               </tr>
             </thead>
@@ -94,6 +95,16 @@
                   </a>
                 </td>
                 <td style="padding: 12px; border: 1px solid #dee2e6;">
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <div style="font-weight: 500; color: #374151; font-size: 14px;">
+                      {{ item.authorInfo?.nickname || item.videoInfo?.authorId || 'N/A' }}
+                    </div>
+                    <div v-if="item.authorInfo?.followerCount" style="font-size: 12px; color: #6b7280;">
+                      粉丝: {{ formatFollowerCount(item.authorInfo.followerCount) }}
+                    </div>
+                  </div>
+                </td>
+                <td style="padding: 12px; border: 1px solid #dee2e6;">
                   <span :style="{
                     padding: '4px 8px',
                     borderRadius: '4px',
@@ -104,7 +115,7 @@
                     {{ getStatusText(item.monitorVideo?.status) }}
                   </span>
                 </td>
-                <td style="padding: 12px; border: 1px solid #dee2e6;">{{ item.userMonitor?.createTime || 'N/A' }}</td>
+                <td style="padding: 12px; border: 1px solid #dee2e6;">{{ formatPublishTime(item.monitorVideo?.videoPublishTime) }}</td>
                 <td style="padding: 12px; border: 1px solid #dee2e6;">
                   <div style="display: flex; gap: 5px;">
                     <button 
@@ -114,10 +125,10 @@
                       查看统计
                     </button>
                     <button 
-                      @click="toggleStatus(item.monitorVideo?.id, item.monitorVideo?.status === 1 ? 0 : 1)"
+                      @click="toggleStatus(item.monitorVideo?.id, item.monitorVideo?.status === 0 ? 1 : 0)"
                       :style="{
                         padding: '4px 8px',
-                        background: item.monitorVideo?.status === 1 ? '#ffc107' : '#28a745',
+                        background: item.monitorVideo?.status === 0 ? '#28a745' : '#ffc107',
                         color: 'white',
                         border: 'none',
                         borderRadius: '4px',
@@ -125,7 +136,7 @@
                         fontSize: '12px'
                       }"
                     >
-                      {{ item.monitorVideo?.status === 1 ? '停用' : '启用' }}
+                      {{ item.monitorVideo?.status === 0 ? '启用' : '停用' }}
                     </button>
                     <button 
                       @click="deleteVideo(item.monitorVideo?.id)"
@@ -148,6 +159,8 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { monitorApi } from '@/api/monitor'
+import { videoApi } from '@/api/video'
+import { authorApi } from '@/api/author'
 
 const router = useRouter()
 
@@ -169,8 +182,46 @@ const loadMonitorVideos = async () => {
     const response = await monitorApi.getMonitorList()
     console.log('独立Monitor页面: API响应:', response)
     if (response.code === 200) {
-      monitorVideos.value = response.data || []
-      console.log('独立Monitor页面: 监控列表数据:', monitorVideos.value)
+      const data = response.data || []
+      
+      // 为每个监控项目获取视频信息和播主信息
+      const enhancedData = await Promise.all(data.map(async item => {
+        let videoInfo = null
+        let authorInfo = null
+        
+        // 获取视频信息
+        if (item.monitorVideo?.awemeId) {
+          try {
+            const videoResponse = await videoApi.getVideoInfo(item.monitorVideo.awemeId)
+            if (videoResponse.code === 200) {
+              videoInfo = videoResponse.data
+            }
+          } catch (videoError) {
+            console.warn('获取视频信息失败:', videoError)
+          }
+        }
+        
+        // 如果有视频信息且包含authorId，获取播主信息
+        if (videoInfo?.authorId) {
+          try {
+            const authorResponse = await authorApi.getAuthorInfo(videoInfo.authorId)
+            if (authorResponse.code === 200) {
+              authorInfo = authorResponse.data
+            }
+          } catch (authorError) {
+            console.warn('获取播主信息失败:', authorError)
+          }
+        }
+        
+        return {
+          ...item,
+          videoInfo,
+          authorInfo
+        }
+      }))
+      
+      monitorVideos.value = enhancedData
+      console.log('独立Monitor页面: 增强后的监控列表数据:', monitorVideos.value)
     } else {
       console.error('独立Monitor页面: 获取监控列表失败:', response.message)
       alert(response.message || '加载监控列表失败')
@@ -189,11 +240,17 @@ const addVideo = async () => {
     return
   }
   
+  // 根据API文档，音乐ID是必选项
+  if (!musicId.value.trim()) {
+    alert('请输入音乐ID，音乐为必选项')
+    return
+  }
+  
   addLoading.value = true
   try {
     const response = await monitorApi.addMonitor({
       videoUrl: newVideoUrl.value.trim(),
-      musicId: musicId.value.trim() || null
+      musicId: parseInt(musicId.value.trim())
     })
     
     if (response.code === 200) {
@@ -202,7 +259,18 @@ const addVideo = async () => {
       musicId.value = ''
       await loadMonitorVideos()
     } else {
-      alert(response.message || '添加监控失败')
+      // 根据API文档的具体错误信息进行处理
+      if (response.message?.includes('音乐ID不能为空，音乐为必选项')) {
+        alert('音乐为必选项，请输入音乐ID')
+      } else if (response.message?.includes('指定的音乐不存在，请选择有效的音乐')) {
+        alert('所输入的音乐ID不存在，请检查后重新输入')
+      } else if (response.message?.includes('视频链接不能为空')) {
+        alert('请输入视频链接')
+      } else if (response.message?.includes('添加失败，可能是链接格式错误或已存在')) {
+        alert('视频链接格式错误或该视频已在监控中')
+      } else {
+        alert(response.message || '添加监控失败')
+      }
     }
   } catch (error) {
     console.error('添加监控失败:', error)
@@ -248,6 +316,23 @@ const viewStats = (awemeId) => {
   } else {
     alert('视频ID无效')
   }
+}
+
+// 格式化发布时间
+const formatPublishTime = (timestamp) => {
+  if (!timestamp) return 'N/A'
+  // videoPublishTime是秒级时间戳，需要转换为毫秒
+  const date = new Date(timestamp * 1000)
+  return date.toLocaleString('zh-CN')
+}
+
+// 格式化粉丝数
+const formatFollowerCount = (count) => {
+  if (!count) return '0'
+  if (count >= 10000) {
+    return (count / 10000).toFixed(1) + 'w'
+  }
+  return count.toString()
 }
 
 // 根据API文档定义的状态码获取状态文本

@@ -92,7 +92,11 @@
           <div v-if="latestStats" class="stats-grid">
             <div class="stat-card likes">
               <div class="stat-icon">
-                <el-icon size="24"><Star /></el-icon>
+                <div class="heart-icon-large">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                </div>
               </div>
               <div class="stat-info">
                 <div class="stat-value">{{ formatNumber(latestStats.diggCount) }}</div>
@@ -493,7 +497,7 @@ onMounted(() => {
 }
 
 .sidebar {
-  width: 240px;
+  width: 180px;
   background: #fff;
   border-right: 1px solid #e6e8eb;
   padding: 16px 0;
@@ -601,7 +605,7 @@ onMounted(() => {
 }
 
 .stat-card.likes {
-  --gradient: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
+  --gradient: linear-gradient(135deg, #ff6b9d 0%, #e74c8c 100%);
 }
 
 .stat-card.comments {
@@ -745,5 +749,13 @@ onMounted(() => {
 
 :deep(.el-breadcrumb__item:not(:last-child) .el-breadcrumb__inner:hover) {
   color: #337ecc;
+}
+
+.heart-icon-large {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff; /* 白色心型，在红色背景上更突出 */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1)); /* 添加轻微阴影增强对比度 */
 }
 </style>

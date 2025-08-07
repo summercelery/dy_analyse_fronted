@@ -15,7 +15,7 @@
 
     <div style="flex: 1; display: flex;">
       <!-- 侧边栏 -->
-      <div style="width: 200px; background-color: #545c64; color: white;">
+      <div style="width: 160px; background-color: #545c64; color: white;">
         <div 
           v-for="item in menuItems" 
           :key="item.path"

@@ -66,7 +66,7 @@
           <div class="toolbar-right">
             <el-input
               v-model="searchKeyword"
-              placeholder="搜索视频ID或链接"
+              placeholder="搜索视频ID、链接或播主名称"
               :prefix-icon="Search"
               style="width: 300px;"
               clearable
@@ -92,7 +92,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ activeMonitors.length }}</div>
-              <div class="stat-label">启用中</div>
+              <div class="stat-label">监控中</div>
             </div>
           </div>
           
@@ -101,8 +101,8 @@
               <el-icon size="20"><CircleClose /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ inactiveMonitors.length }}</div>
-              <div class="stat-label">已停用</div>
+              <div class="stat-value">{{ inactiveAndAbnormalMonitors.length }}</div>
+              <div class="stat-label">未启用</div>
             </div>
           </div>
         </div>
@@ -132,10 +132,13 @@
               style="width: 100%"
               @selection-change="handleSelectionChange"
               :empty-text="filteredMonitors.length === 0 ? '暂无监控数据' : ''"
+              size="default"
+              :cell-style="{ padding: '8px 6px' }"
+              :header-cell-style="{ padding: '10px 6px', background: '#fafafa' }"
             >
-              <el-table-column type="selection" width="55" />
+              <el-table-column type="selection" width="50" />
               
-              <el-table-column label="视频ID" min-width="120">
+              <el-table-column label="视频ID" width="140">
                 <template #default="{ row }">
                   <div class="video-id">
                     {{ row.monitorVideo?.awemeId || 'N/A' }}
@@ -143,34 +146,49 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="视频链接" min-width="200">
+              <el-table-column label="视频链接" width="280">
                 <template #default="{ row }">
-                  <div class="video-url">
+                  <div class="video-url-wrap">
                     <el-link 
                       v-if="row.monitorVideo?.videoUrl"
                       :href="row.monitorVideo.videoUrl" 
                       target="_blank"
                       type="primary"
+                      class="video-link"
                     >
-                      {{ truncateUrl(row.monitorVideo.videoUrl) }}
+                      {{ row.monitorVideo.videoUrl }}
                     </el-link>
                     <span v-else class="na-text">N/A</span>
                   </div>
                 </template>
               </el-table-column>
               
-              <el-table-column label="状态" width="100">
+              <el-table-column label="播主名称" width="140">
+                <template #default="{ row }">
+                  <div class="author-name">
+                    <div class="author-nickname">
+                      {{ row.authorInfo?.nickname || row.videoInfo?.authorId || 'N/A' }}
+                    </div>
+                    <div v-if="row.authorInfo?.followerCount" class="author-followers">
+                      粉丝: {{ formatFollowerCount(row.authorInfo.followerCount) }}
+                    </div>
+                  </div>
+                </template>
+              </el-table-column>
+              
+              <el-table-column label="状态" width="100" align="center">
                 <template #default="{ row }">
                   <el-tag 
                     :type="getStatusType(row.monitorVideo?.status)"
                     size="small"
+                    class="status-tag"
                   >
                     {{ getStatusText(row.monitorVideo?.status) }}
                   </el-tag>
                 </template>
               </el-table-column>
               
-              <el-table-column label="关联音乐" min-width="150">
+              <el-table-column label="关联音乐" width="130">
                 <template #default="{ row }">
                   <div v-if="row.musicInfo" class="music-info">
                     <div class="music-title">{{ row.musicInfo.title }}</div>
@@ -180,11 +198,15 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="最新数据" min-width="150">
+              <el-table-column label="最新数据" width="140">
                 <template #default="{ row }">
                   <div v-if="row.latestStats" class="stats-preview">
                     <div class="stats-item">
-                      <el-icon size="14"><Star /></el-icon>
+                      <div class="heart-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                      </div>
                       <span>{{ formatNumber(row.latestStats.diggCount || 0) }}</span>
                     </div>
                     <div class="stats-item">
@@ -196,13 +218,15 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="创建时间" width="180">
+              <el-table-column label="发布时间" width="160" align="center">
                 <template #default="{ row }">
-                  {{ formatDate(row.userMonitor?.createTime) }}
+                  <div class="publish-time">
+                    {{ formatPublishTime(row.monitorVideo?.videoPublishTime) }}
+                  </div>
                 </template>
               </el-table-column>
               
-              <el-table-column label="操作" width="200" fixed="right">
+              <el-table-column label="操作" width="160" fixed="right">
                 <template #default="{ row }">
                   <div class="table-actions">
                     <el-tooltip content="查看统计" placement="top">
@@ -222,7 +246,9 @@
                         :icon="row.monitorVideo?.status === 1 ? VideoPause : VideoPlay"
                         @click="toggleStatus(row)"
                         link
-                      />
+                      >
+                        {{ row.monitorVideo?.status === 1 ? '停用' : '启用' }}
+                      </el-button>
                     </el-tooltip>
                     
                     <el-tooltip content="删除监控" placement="top">
@@ -247,23 +273,81 @@
     <el-dialog
       v-model="showAddDialog"
       title="添加监控视频"
-      width="500px"
+      width="600px"
     >
+      <!-- 添加方式选择 -->
+      <el-radio-group v-model="addMode" style="margin-bottom: 20px;" @change="resetAddForm">
+        <el-radio-button label="single">单个添加</el-radio-button>
+        <el-radio-button label="batch">批量导入</el-radio-button>
+      </el-radio-group>
 
-      
       <el-form :model="addForm" label-width="100px">
-        <el-form-item label="视频链接">
-          <el-input 
-            v-model="addForm.videoUrl" 
-            placeholder="请输入抖音视频链接或ID"
-          />
-        </el-form-item>
+        <!-- 单个添加模式 -->
+        <template v-if="addMode === 'single'">
+          <el-form-item label="视频链接">
+            <el-input 
+              v-model="addForm.videoUrl" 
+              placeholder="请输入抖音视频链接或ID"
+            />
+          </el-form-item>
+        </template>
+
+        <!-- 批量导入模式 -->
+        <template v-else>
+          <el-alert
+            title="批量导入说明"
+            type="info"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 20px;"
+          >
+            <template #default>
+              <div style="line-height: 1.6;">
+                <p><strong>Excel文件格式要求：</strong></p>
+                <ul style="margin: 8px 0; padding-left: 20px;">
+                  <li>支持 .xlsx、.xls 和 .csv 格式</li>
+                  <li>第一行为标题行（监控视频地址），会被跳过</li>
+                  <li>从第二行开始，第一列为视频链接</li>
+                </ul>
+                <p style="margin: 8px 0;">
+                  <el-button 
+                    type="primary" 
+                    size="small" 
+                    @click="downloadTemplate"
+                    :icon="Download"
+                  >
+                    下载Excel模板
+                  </el-button>
+                </p>
+              </div>
+            </template>
+          </el-alert>
+
+          <el-form-item label="Excel文件" required>
+            <el-upload
+              ref="uploadRef"
+              :auto-upload="false"
+              :show-file-list="true"
+              :limit="1"
+              accept=".xlsx,.xls,.csv"
+              :on-change="handleFileChange"
+              :on-remove="handleFileRemove"
+            >
+              <el-button :icon="Upload">选择Excel文件</el-button>
+              <template #tip>
+                <div class="el-upload__tip" style="color: #909399; font-size: 12px; margin-top: 5px;">
+                  支持 .xlsx/.xls/.csv 文件，且不超过 10MB
+                </div>
+              </template>
+            </el-upload>
+          </el-form-item>
+        </template>
         
-        <el-form-item label="音乐选择">
+        <el-form-item label="音乐选择" required>
           <div style="display: flex; gap: 10px; width: 100%;">
             <el-select
               v-model="addForm.musicId"
-              placeholder="请选择音乐"
+              placeholder="请选择音乐（必填）"
               style="flex: 1"
               filterable
               remote
@@ -293,8 +377,13 @@
       
       <template #footer>
         <el-button @click="showAddDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleAddMonitor" :loading="addLoading">
-          添加监控
+        <el-button 
+          type="primary" 
+          @click="addMode === 'single' ? handleAddMonitor() : handleExcelUpload()" 
+          :loading="addMode === 'single' ? addLoading : excelUploading"
+          :disabled="addMode === 'batch' && (!addForm.musicId || !addForm.file)"
+        >
+          {{ addMode === 'single' ? '添加监控' : '开始导入' }}
         </el-button>
       </template>
     </el-dialog>
@@ -364,16 +453,84 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 任务进度对话框 -->
+    <el-dialog
+      v-model="showTaskProgressDialog"
+      title="导入进度"
+      width="500px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      @close="closeTaskProgressDialog"
+    >
+      <div class="task-progress-container">
+        <div class="task-info">
+          <p><strong>文件名：</strong>{{ currentTask.fileName }}</p>
+          <p><strong>任务ID：</strong>{{ currentTask.id }}</p>
+          <p>
+            <strong>状态：</strong>
+            <el-tag :type="getTaskStatusType(currentTask.status)" size="small">
+              {{ getTaskStatusText(currentTask.status) }}
+            </el-tag>
+          </p>
+        </div>
+
+        <div class="progress-section">
+          <el-progress 
+            :percentage="currentTask.progress" 
+            :status="currentTask.status === 'COMPLETED' ? 'success' : (currentTask.status === 'FAILED' ? 'exception' : null)"
+          />
+          
+          <div class="progress-stats" v-if="currentTask.totalCount > 0">
+            <div class="stats-row">
+              <span>总计：{{ currentTask.totalCount }}</span>
+              <span>已处理：{{ currentTask.processedCount }}</span>
+            </div>
+            <div class="stats-row">
+              <span style="color: #67c23a;">成功：{{ currentTask.successCount }}</span>
+              <span style="color: #909399;">跳过：{{ currentTask.skipCount }}</span>
+              <span style="color: #f56c6c;">失败：{{ currentTask.errorCount }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="currentTask.status === 'PROCESSING'" class="processing-tip">
+          <el-icon class="rotating"><Loading /></el-icon>
+          <span>正在处理中，请稍候...</span>
+        </div>
+
+        <div v-if="currentTask.status === 'COMPLETED'" class="completed-message">
+          <el-icon style="color: #67c23a;"><CircleCheck /></el-icon>
+          <span>导入完成！</span>
+        </div>
+
+        <div v-if="currentTask.status === 'FAILED'" class="failed-message">
+          <el-icon style="color: #f56c6c;"><CircleClose /></el-icon>
+          <span>导入失败，请重试</span>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button 
+          @click="closeTaskProgressDialog"
+          :disabled="currentTask.status === 'PROCESSING'"
+        >
+          {{ currentTask.status === 'PROCESSING' ? '处理中...' : '关闭' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { monitorApi } from '@/api/monitor'
 import { musicApi } from '@/api/music'
 import { videoApi } from '@/api/video'
+import { authorApi } from '@/api/author'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus,
@@ -386,12 +543,15 @@ import {
   VideoCamera,
   CircleCheck,
   CircleClose,
-  Star,
   ChatDotRound,
+  Download,
+  Loading,
   Odometer,
   View,
   Headset,
-  ArrowDown
+  ArrowDown,
+  Upload,
+  Collection
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -408,9 +568,13 @@ const musicOptions = ref([])
 const showAddDialog = ref(false)
 const showBatchDialog = ref(false)
 const showMusicDialog = ref(false)
+const showTaskProgressDialog = ref(false)
+const excelUploading = ref(false)
+const addMode = ref('single') // 'single' 或 'batch'
 const addForm = ref({
   videoUrl: '',
-  musicId: null
+  musicId: null,
+  file: null
 })
 
 const quickMusicForm = ref({
@@ -420,24 +584,58 @@ const quickMusicForm = ref({
   tagList: ''
 })
 
+// 任务进度相关数据
+const currentTask = ref({
+  id: null,
+  fileName: '',
+  status: 'PENDING',
+  progress: 0,
+  totalCount: 0,
+  processedCount: 0,
+  successCount: 0,
+  skipCount: 0,
+  errorCount: 0
+})
+
+const taskProgressTimer = ref(null)
+
 const filteredMonitors = computed(() => {
   if (!searchKeyword.value) return monitorList.value
   
   return monitorList.value.filter(item => {
     const awemeId = item.monitorVideo?.awemeId?.toString() || ''
     const videoUrl = item.monitorVideo?.videoUrl || ''
+    const authorNickname = item.authorInfo?.nickname || ''
+    const authorId = item.videoInfo?.authorId || ''
     const keyword = searchKeyword.value.toLowerCase()
     
     return awemeId.toLowerCase().includes(keyword) || 
-           videoUrl.toLowerCase().includes(keyword)
+           videoUrl.toLowerCase().includes(keyword) ||
+           authorNickname.toLowerCase().includes(keyword) ||
+           authorId.toLowerCase().includes(keyword)
   })
 })
 
 const activeMonitors = computed(() => {
+  // status=1是正常监控中
   return filteredMonitors.value.filter(item => item.monitorVideo?.status === 1)
 })
 
 const inactiveMonitors = computed(() => {
+  // status=0是已停用
+  return filteredMonitors.value.filter(item => item.monitorVideo?.status === 0)
+})
+
+const abnormalMonitors = computed(() => {
+  // status=2,3等是监控异常
+  return filteredMonitors.value.filter(item => {
+    const status = item.monitorVideo?.status
+    return status !== 0 && status !== 1
+  })
+})
+
+const inactiveAndAbnormalMonitors = computed(() => {
+  // 合并已停用(status=0)和监控异常(status=2,3等)
   return filteredMonitors.value.filter(item => item.monitorVideo?.status !== 1)
 })
 
@@ -454,10 +652,19 @@ const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleString('zh-CN')
 }
 
-const truncateUrl = (url) => {
-  if (!url) return ''
-  if (url.length <= 50) return url
-  return url.substring(0, 47) + '...'
+const formatPublishTime = (timestamp) => {
+  if (!timestamp) return 'N/A'
+  // videoPublishTime是秒级时间戳，需要转换为毫秒
+  const date = new Date(timestamp * 1000)
+  return date.toLocaleString('zh-CN')
+}
+
+const formatFollowerCount = (count) => {
+  if (!count) return '0'
+  if (count >= 10000) {
+    return (count / 10000).toFixed(1) + 'w'
+  }
+  return count.toString()
 }
 
 // 根据API文档定义的状态码获取状态类型
@@ -515,6 +722,8 @@ const loadMonitorVideos = async () => {
             )
             
             let musicInfo = detail?.music || detail?.musicInfo
+            let videoInfo = detail?.video
+            let authorInfo = null
             
             // 如果详细信息中没有音乐信息，但有musicId，尝试获取音乐信息
             if (!musicInfo && (item.userMonitor?.musicId || item.monitorVideo?.musicId)) {
@@ -529,9 +738,35 @@ const loadMonitorVideos = async () => {
               }
             }
             
+            // 如果没有视频详细信息，尝试获取视频信息
+            if (!videoInfo && item.monitorVideo?.awemeId) {
+              try {
+                const videoResponse = await videoApi.getVideoInfo(item.monitorVideo.awemeId)
+                if (videoResponse.code === 200) {
+                  videoInfo = videoResponse.data
+                }
+              } catch (videoError) {
+                console.warn('获取视频信息失败:', videoError)
+              }
+            }
+            
+            // 如果有视频信息且包含authorId，尝试获取播主信息
+            if (videoInfo?.authorId) {
+              try {
+                const authorResponse = await authorApi.getAuthorInfo(videoInfo.authorId)
+                if (authorResponse.code === 200) {
+                  authorInfo = authorResponse.data
+                }
+              } catch (authorError) {
+                console.warn('获取播主信息失败:', authorError)
+              }
+            }
+            
             return {
               ...item,
               musicInfo,
+              videoInfo,
+              authorInfo,
               latestStats: detail?.latestStats || detail?.video?.latestStats,
               video: detail?.video
             }
@@ -540,9 +775,11 @@ const loadMonitorVideos = async () => {
           console.log('Monitor页面: 合并后的数据:', mergedData)
           monitorList.value = mergedData
         } else {
-          // 如果获取详细信息失败，尝试单独获取音乐信息和统计数据
+          // 如果获取详细信息失败，尝试单独获取音乐信息、视频信息、播主信息和统计数据
           const enhancedData = await Promise.all(data.map(async item => {
             let musicInfo = null
+            let videoInfo = null
+            let authorInfo = null
             let latestStats = null
             
             // 尝试获取音乐信息
@@ -555,6 +792,30 @@ const loadMonitorVideos = async () => {
                 }
               } catch (musicError) {
                 console.warn('获取音乐信息失败:', musicError)
+              }
+            }
+            
+            // 尝试获取视频信息
+            if (item.monitorVideo?.awemeId) {
+              try {
+                const videoResponse = await videoApi.getVideoInfo(item.monitorVideo.awemeId)
+                if (videoResponse.code === 200) {
+                  videoInfo = videoResponse.data
+                }
+              } catch (videoError) {
+                console.warn('获取视频信息失败:', videoError)
+              }
+            }
+            
+            // 如果有视频信息且包含authorId，尝试获取播主信息
+            if (videoInfo?.authorId) {
+              try {
+                const authorResponse = await authorApi.getAuthorInfo(videoInfo.authorId)
+                if (authorResponse.code === 200) {
+                  authorInfo = authorResponse.data
+                }
+              } catch (authorError) {
+                console.warn('获取播主信息失败:', authorError)
               }
             }
             
@@ -573,6 +834,8 @@ const loadMonitorVideos = async () => {
             return {
               ...item,
               musicInfo,
+              videoInfo,
+              authorInfo,
               latestStats
             }
           }))
@@ -600,11 +863,17 @@ const handleAddMonitor = async () => {
     return
   }
   
+  // 根据API文档，音乐ID是必选项
+  if (!addForm.value.musicId) {
+    ElMessage.warning('请选择音乐，音乐为必选项')
+    return
+  }
+  
   addLoading.value = true
   try {
     const response = await monitorApi.addMonitor({
       videoUrl: addForm.value.videoUrl.trim(),
-      musicId: addForm.value.musicId || null
+      musicId: addForm.value.musicId
     })
     
     if (response.code === 200) {
@@ -616,7 +885,18 @@ const handleAddMonitor = async () => {
       }
       await loadMonitorVideos()
     } else {
-      ElMessage.error(response.message || '添加监控失败')
+      // 根据API文档的具体错误信息进行处理
+      if (response.message?.includes('音乐ID不能为空，音乐为必选项')) {
+        ElMessage.error('音乐为必选项，请选择一个音乐')
+      } else if (response.message?.includes('指定的音乐不存在，请选择有效的音乐')) {
+        ElMessage.error('所选音乐不存在，请重新选择')
+      } else if (response.message?.includes('视频链接不能为空')) {
+        ElMessage.error('请输入视频链接')
+      } else if (response.message?.includes('添加失败，可能是链接格式错误或已存在')) {
+        ElMessage.error('视频链接格式错误或该视频已在监控中')
+      } else {
+        ElMessage.error(response.message || '添加监控失败')
+      }
     }
   } catch (error) {
     ElMessage.error('添加监控失败')
@@ -657,6 +937,33 @@ const searchMusicRemote = async (query) => {
   }
 }
 
+// 重置添加表单
+const resetAddForm = () => {
+  addForm.value = {
+    videoUrl: '',
+    musicId: null,
+    file: null
+  }
+  // 清理上传组件
+  if (uploadRef.value) {
+    try {
+      uploadRef.value.clearFiles()
+    } catch (error) {
+      console.warn('清理上传组件失败:', error)
+    }
+  }
+}
+
+// 下载Excel模板
+const downloadTemplate = () => {
+  const link = document.createElement('a')
+  link.href = '/监控视频模板.xlsx'
+  link.download = '监控视频模板.xlsx'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
 const handleQuickAddMusic = async () => {
   if (!quickMusicForm.value.title.trim() || !quickMusicForm.value.author.trim()) {
     ElMessage.warning('请输入音乐标题和作者')
@@ -684,6 +991,207 @@ const handleQuickAddMusic = async () => {
   }
 }
 
+// Excel文件处理函数
+const uploadRef = ref()
+
+const handleFileChange = (file) => {
+  console.log('文件选择:', file)
+  
+  // 检查文件类型
+  const allowedTypes = [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.ms-excel', // .xls
+    'text/csv', // .csv
+    'application/csv' // .csv (alternative MIME type)
+  ]
+  
+  if (!allowedTypes.includes(file.raw.type) && !file.name.endsWith('.csv')) {
+    ElMessage.error('请选择 .xlsx、.xls 或 .csv 格式的文件')
+    try {
+      uploadRef.value?.clearFiles()
+    } catch (error) {
+      console.warn('清理上传文件失败:', error)
+    }
+    addForm.value.file = null
+    return
+  }
+  
+  // 检查文件大小（10MB）
+  const maxSize = 10 * 1024 * 1024
+  if (file.raw.size > maxSize) {
+    ElMessage.error('文件大小不能超过 10MB')
+    try {
+      uploadRef.value?.clearFiles()
+    } catch (error) {
+      console.warn('清理上传文件失败:', error)
+    }
+    addForm.value.file = null
+    return
+  }
+  
+  addForm.value.file = file.raw
+}
+
+const handleFileRemove = () => {
+  console.log('文件移除')
+  addForm.value.file = null
+}
+
+const handleExcelUpload = async () => {
+  if (!addForm.value.musicId) {
+    ElMessage.warning('请选择音乐，音乐为必选项')
+    return
+  }
+  
+  if (!addForm.value.file) {
+    ElMessage.warning('请选择要上传的Excel文件')
+    return
+  }
+
+  // 额外验证文件对象的完整性
+  if (!addForm.value.file.name) {
+    ElMessage.error('文件信息不完整，请重新选择文件')
+    addForm.value.file = null
+    return
+  }
+  
+  excelUploading.value = true
+  
+  try {
+    // 创建FormData对象
+    const formData = new FormData()
+    formData.append('file', addForm.value.file)
+    formData.append('musicId', addForm.value.musicId.toString())
+    
+    console.log('开始上传Excel文件:', {
+      fileName: addForm.value.file.name,
+      fileSize: addForm.value.file.size,
+      musicId: addForm.value.musicId
+    })
+    
+    const response = await monitorApi.uploadExcelAsync(formData)
+    
+    if (response.code === 200) {
+      const { taskId, message } = response.data
+      
+      ElMessage.success('文件上传成功，正在后台处理中...')
+      
+      // 保存文件名，因为resetAddForm会清空file
+      const fileName = addForm.value.file?.name || '未知文件'
+      
+      // 关闭对话框并重置表单
+      showAddDialog.value = false
+      resetAddForm()
+      
+      // 显示任务进度对话框
+      openTaskProgressDialog(taskId, fileName)
+      
+    } else {
+      // 处理各种错误情况
+      let errorMessage = response.message || 'Excel上传失败'
+      
+      if (response.message?.includes('请选择要上传的Excel文件')) {
+        errorMessage = '请选择要上传的Excel文件'
+      } else if (response.message?.includes('文件格式不正确，请上传Excel文件(.xlsx或.xls)')) {
+        errorMessage = '文件格式不正确，请上传Excel文件(.xlsx或.xls)'
+      } else if (response.message?.includes('音乐ID不能为空，音乐为必选项')) {
+        errorMessage = '音乐为必选项，请选择音乐'
+      } else if (response.message?.includes('指定的音乐不存在，请选择有效的音乐')) {
+        errorMessage = '所选音乐不存在，请重新选择音乐'
+      }
+      
+      ElMessage.error(errorMessage)
+    }
+    
+  } catch (error) {
+    console.error('Excel上传失败:', error)
+    ElMessage.error('Excel上传失败，请检查网络连接后重试')
+  } finally {
+    excelUploading.value = false
+  }
+}
+
+// 显示任务进度对话框
+const openTaskProgressDialog = (taskId, fileName) => {
+  currentTask.value = {
+    id: taskId,
+    fileName: fileName,
+    status: 'PENDING',
+    progress: 0,
+    totalCount: 0,
+    processedCount: 0,
+    successCount: 0,
+    skipCount: 0,
+    errorCount: 0
+  }
+  
+  showTaskProgressDialog.value = true
+  
+  // 开始轮询任务进度
+  startTaskProgressPolling()
+}
+
+// 开始轮询任务进度
+const startTaskProgressPolling = () => {
+  if (taskProgressTimer.value) {
+    clearInterval(taskProgressTimer.value)
+  }
+  
+  taskProgressTimer.value = setInterval(async () => {
+    try {
+      const response = await monitorApi.getTaskProgress(currentTask.value.id)
+      if (response.code === 200) {
+        const taskData = response.data
+        currentTask.value = { ...currentTask.value, ...taskData }
+        
+        // 如果任务完成或失败，停止轮询
+        if (taskData.status === 'COMPLETED' || taskData.status === 'FAILED') {
+          clearInterval(taskProgressTimer.value)
+          taskProgressTimer.value = null
+          
+          // 任务完成后刷新监控列表
+          if (taskData.status === 'COMPLETED') {
+            await loadMonitorVideos()
+          }
+        }
+      }
+    } catch (error) {
+      console.error('查询任务进度失败:', error)
+    }
+  }, 2000) // 每2秒查询一次
+}
+
+// 停止轮询并关闭对话框
+const closeTaskProgressDialog = () => {
+  if (taskProgressTimer.value) {
+    clearInterval(taskProgressTimer.value)
+    taskProgressTimer.value = null
+  }
+  showTaskProgressDialog.value = false
+}
+
+// 获取任务状态文本
+const getTaskStatusText = (status) => {
+  switch (status) {
+    case 'PENDING': return '等待处理'
+    case 'PROCESSING': return '处理中'
+    case 'COMPLETED': return '已完成'
+    case 'FAILED': return '处理失败'
+    default: return '未知状态'
+  }
+}
+
+// 获取任务状态类型
+const getTaskStatusType = (status) => {
+  switch (status) {
+    case 'PENDING': return 'info'
+    case 'PROCESSING': return 'warning'
+    case 'COMPLETED': return 'success'
+    case 'FAILED': return 'danger'
+    default: return 'info'
+  }
+}
+
 const viewStats = (awemeId) => {
   if (awemeId) {
     router.push(`/stats/${awemeId}`)
@@ -693,7 +1201,9 @@ const viewStats = (awemeId) => {
 }
 
 const toggleStatus = async (row) => {
-  const newStatus = row.monitorVideo?.status === 1 ? 0 : 1
+  // status=1是启用状态，status=0是停用状态，其他状态都是异常状态
+  const currentStatus = row.monitorVideo?.status
+  const newStatus = currentStatus === 1 ? 0 : 1
   const action = newStatus === 1 ? '启用' : '停用'
   
   try {
@@ -806,6 +1316,14 @@ const handleCommand = async (command) => {
 onMounted(() => {
   loadMonitorVideos()
 })
+
+onUnmounted(() => {
+  // 清理定时器
+  if (taskProgressTimer.value) {
+    clearInterval(taskProgressTimer.value)
+    taskProgressTimer.value = null
+  }
+})
 </script>
 
 <style scoped>
@@ -857,7 +1375,7 @@ onMounted(() => {
 }
 
 .sidebar {
-  width: 240px;
+  width: 180px;
   background: #fff;
   border-right: 1px solid #e6e8eb;
   padding: 16px 0;
@@ -1008,40 +1526,108 @@ onMounted(() => {
   font-style: italic;
 }
 
+.author-name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.author-nickname {
+  font-weight: 500;
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.author-followers {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: normal;
+  line-height: 1.2;
+}
+
 .stats-preview {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
 }
 
 .stats-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   font-size: 12px;
   color: #6b7280;
+}
+
+.heart-icon {
+  display: flex;
+  align-items: center;
+  color: #ef4444; /* 红色心型 */
 }
 
 .music-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .music-title {
-  font-weight: 600;
-  font-size: 13px;
+  font-weight: 500;
+  font-size: 12px;
   color: #374151;
+  line-height: 1.4;
 }
 
 .music-author {
-  font-size: 12px;
+  font-size: 11px;
   color: #6b7280;
+  line-height: 1.2;
+}
+
+/* 紧凑版统计数据样式 */
+.stats-preview-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.stats-item-compact {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.heart-icon-small {
+  display: flex;
+  align-items: center;
+  color: #ef4444;
+}
+
+.stats-number {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.na-text-small {
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 11px;
+}
+
+.publish-time {
+  font-size: 12px;
+  color: #374151;
+  line-height: 1.4;
 }
 
 .table-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  align-items: center;
 }
 
 :deep(.el-card__header) {
@@ -1066,5 +1652,112 @@ onMounted(() => {
 
 :deep(.el-table .el-table__cell) {
   border-bottom: 1px solid #f1f3f4;
+}
+
+/* 修复状态标签的小黑点问题 */
+.status-tag {
+  border: none !important;
+}
+
+.status-tag::after {
+  display: none !important;
+}
+
+:deep(.el-tag) {
+  border: none !important;
+}
+
+:deep(.el-tag::after) {
+  display: none !important;
+}
+
+/* 视频链接换行显示 */
+.video-url-wrap {
+  max-width: 100%;
+  line-height: 1.4;
+}
+
+.video-link {
+  word-break: break-all;
+  white-space: normal;
+  line-height: 1.4;
+  display: inline-block;
+  max-width: 100%;
+}
+
+:deep(.video-link .el-link__inner) {
+  word-break: break-all;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+/* 任务进度对话框样式 */
+.task-progress-container {
+  padding: 10px 0;
+}
+
+.task-info {
+  margin-bottom: 20px;
+}
+
+.task-info p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.progress-section {
+  margin: 20px 0;
+}
+
+.progress-stats {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 6px;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.processing-tip, .completed-message, .failed-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 15px 0;
+  padding: 10px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.processing-tip {
+  background-color: #fff7e6;
+  color: #e6a23c;
+}
+
+.completed-message {
+  background-color: #f0f9ff;
+  color: #67c23a;
+}
+
+.failed-message {
+  background-color: #fef0f0;
+  color: #f56c6c;
+}
+
+.rotating {
+  animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

@@ -71,7 +71,7 @@
             </div>
             <div class="stat-content">
               <div class="stat-value">{{ activeCount }}</div>
-              <div class="stat-label">启用监控</div>
+              <div class="stat-label">监控中</div>
             </div>
           </div>
           
@@ -225,6 +225,7 @@ const loginTime = ref(new Date().toLocaleString())
 const lastUpdateTime = ref('')
 
 const activeCount = computed(() => {
+  // status=1是正常监控中
   return monitorVideos.value.filter(item => item.monitorVideo?.status === 1).length
 })
 
@@ -361,7 +362,7 @@ onMounted(() => {
 }
 
 .sidebar {
-  width: 240px;
+  width: 180px;
   background: #fff;
   border-right: 1px solid #e6e8eb;
   padding: 16px 0;

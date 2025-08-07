@@ -72,7 +72,7 @@
               </div>
               <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 4px;">
                 <div style="font-size: 24px; font-weight: bold; color: #409EFF; margin-bottom: 8px;">{{ activeCount }}</div>
-                <div style="color: #666; font-size: 14px;">启用监控数</div>
+                <div style="color: #666; font-size: 14px;">监控中</div>
               </div>
             </div>
             
@@ -125,6 +125,7 @@ const loading = ref(false)
 const monitorVideos = ref([])
 
 const activeCount = computed(() => {
+  // status=1是正常监控中
   return monitorVideos.value.filter(item => item.monitorVideo?.status === 1).length
 })
 

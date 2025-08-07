@@ -33,5 +33,53 @@ export const monitorApi = {
       url: `/monitor/${id}`,
       method: 'delete'
     })
+  },
+
+  // Excel批量添加监控视频（同步版本）
+  uploadExcel(formData) {
+    return request({
+      url: '/monitor/upload/excel',
+      method: 'post',
+      data: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+
+  // Excel批量添加监控视频（异步版本）
+  uploadExcelAsync(formData) {
+    return request({
+      url: '/monitor/upload/excel/async',
+      method: 'post',
+      data: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+
+  // 查询导入任务进度
+  getTaskProgress(taskId) {
+    return request({
+      url: `/import-task/${taskId}/progress`,
+      method: 'get'
+    })
+  },
+
+  // 查询任务详情
+  getTaskDetails(taskId) {
+    return request({
+      url: `/import-task/${taskId}`,
+      method: 'get'
+    })
+  },
+
+  // 查询用户任务列表
+  getUserTasks(limit = 10) {
+    return request({
+      url: `/import-task/list?limit=${limit}`,
+      method: 'get'
+    })
   }
 }
