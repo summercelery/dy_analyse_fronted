@@ -40,6 +40,10 @@
               <el-icon><View /></el-icon>
               <span>监控管理</span>
             </el-menu-item>
+            <el-menu-item index="/music-monitor">
+              <el-icon><Headset /></el-icon>
+              <span>音乐监控</span>
+            </el-menu-item>
             <el-menu-item index="/test">
               <el-icon><Setting /></el-icon>
               <span>测试页面</span>

@@ -74,5 +74,37 @@ export const musicApi = {
       url: `/music/${id}`,
       method: 'delete'
     })
+  },
+
+  // 根据音乐ID获取监控视频
+  getMonitorVideosByMusicId(musicId) {
+    return request({
+      url: `/monitor/list/music/${musicId}`,
+      method: 'get'
+    })
+  },
+
+  // 根据音乐ID和类型获取监控视频
+  getMonitorVideosByMusicIdAndType(musicId, type) {
+    return request({
+      url: `/monitor/list/music/${musicId}/type/${type}`,
+      method: 'get'
+    })
+  },
+
+  // 根据音乐ID和状态获取监控视频
+  getMonitorVideosByMusicIdAndStatus(musicId, status) {
+    return request({
+      url: `/monitor/list/music/${musicId}/status/${status}`,
+      method: 'get'
+    })
+  },
+
+  // 根据音乐ID、类型和状态获取监控视频
+  getMonitorVideosByMusicIdTypeAndStatus(musicId, type, status) {
+    return request({
+      url: `/monitor/list/music/${musicId}/type/${type}/status/${status}`,
+      method: 'get'
+    })
   }
 }

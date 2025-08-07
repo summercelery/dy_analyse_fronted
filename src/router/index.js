@@ -37,6 +37,18 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/music-monitor',
+    name: 'MusicMonitor',
+    component: () => import('@/views/MusicMonitor.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/music-monitor/:musicId',
+    name: 'MusicMonitorDetail',
+    component: () => import('@/views/MusicMonitorDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/monitor-old',
     name: 'MonitorOld',
     component: () => import('@/views/Monitor.vue'),
