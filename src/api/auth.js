@@ -41,5 +41,14 @@ export const authApi = {
       url: '/user/checkLogin',
       method: 'get'
     })
+  },
+
+  // 更新邮箱
+  updateEmail(data) {
+    return request({
+      url: '/user/email',
+      method: 'put',
+      data
+    })
   }
 }

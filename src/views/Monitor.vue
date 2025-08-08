@@ -15,6 +15,7 @@
             <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="updateEmail">更新邮箱</el-dropdown-item>
                 <el-dropdown-item command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -31,14 +32,6 @@
           router
           class="sidebar-menu"
         >
-          <el-menu-item index="/dashboard" class="menu-item">
-            <el-icon><Odometer /></el-icon>
-            <span>数据概览</span>
-          </el-menu-item>
-          <el-menu-item index="/monitor" class="menu-item">
-            <el-icon><View /></el-icon>
-            <span>监控管理</span>
-          </el-menu-item>
           <el-menu-item index="/music" class="menu-item">
             <el-icon><Headset /></el-icon>
             <span>音乐管理</span>
@@ -49,13 +42,88 @@
       <!-- 主内容区 -->
       <main class="content">
         <div class="page-header">
-          <h2 class="page-title">监控管理</h2>
-          <p class="page-desc">管理您的抖音视频监控任务，实时掌握数据变化</p>
+          <template v-if="currentMusicId && currentMusicInfo">
+            <h2 class="page-title">
+              {{ currentMusicInfo.title }}
+              <span class="music-meta"> · {{ currentMusicInfo.author }}</span>
+            </h2>
+            <p class="page-meta">
+              <span>专辑：{{ currentMusicInfo.album || '-' }}</span>
+              <span v-if="currentMusicInfo.tagList"> · 标签：{{ currentMusicInfo.tagList }}</span>
+            </p>
+          </template>
+          <template v-else>
+            <h2 class="page-title">监控管理</h2>
+            <p class="page-desc">管理您的抖音视频监控任务，实时掌握数据变化</p>
+          </template>
         </div>
 
-        <!-- 操作栏 -->
+        <!-- 统计卡片 -->
+        <div class="stats-row">
+          <div 
+            class="stat-card total"
+            :class="{ 'is-active': currentFilter === 'all' }"
+            @click="filterVideos('all')"
+          >
+            <div class="stat-icon">
+              <el-icon size="20"><VideoCamera /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ allMonitors.length }}</div>
+              <div class="stat-label">监控视频总数</div>
+            </div>
+          </div>
+          
+          <div 
+            class="stat-card monitoring"
+            :class="{ 'is-active': currentFilter === 'monitoring' }"
+            @click="filterVideos('monitoring')"
+          >
+            <div class="stat-icon">
+              <el-icon size="20"><CircleCheck /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ activeMonitors.length }}</div>
+              <div class="stat-label">监控中</div>
+            </div>
+          </div>
+          
+          <div 
+            class="stat-card error"
+            :class="{ 'is-active': currentFilter === 'error' }"
+            @click="filterVideos('error')"
+          >
+            <div class="stat-icon">
+              <el-icon size="20"><Warning /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ abnormalMonitors.length }}</div>
+              <div class="stat-label">异常监控</div>
+            </div>
+          </div>
+          
+          <div 
+            class="stat-card auto"
+            :class="{ 'is-active': currentFilter === 'auto' }"
+            @click="filterVideos('auto')"
+          >
+            <div class="stat-icon">
+              <el-icon size="20"><MagicStick /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ autoMonitors.length }}</div>
+              <div class="stat-label">自动添加</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 操作栏（已与统计卡片交换位置） -->
+        <div class="section-divider"></div>
         <div class="toolbar">
           <div class="toolbar-left">
+            <el-button v-if="currentMusicId" @click="goBackFromMusic" :icon="ArrowLeft">
+              返回
+            </el-button>
             <el-button type="primary" @click="showAddDialog = true" :icon="Plus">
               添加监控
             </el-button>
@@ -71,39 +139,6 @@
               style="width: 300px;"
               clearable
             />
-          </div>
-        </div>
-
-        <!-- 统计卡片 -->
-        <div class="stats-row">
-          <div class="stat-card total">
-            <div class="stat-icon">
-              <el-icon size="20"><VideoCamera /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ filteredMonitors.length }}</div>
-              <div class="stat-label">总监控数</div>
-            </div>
-          </div>
-          
-          <div class="stat-card active">
-            <div class="stat-icon">
-              <el-icon size="20"><CircleCheck /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ activeMonitors.length }}</div>
-              <div class="stat-label">监控中</div>
-            </div>
-          </div>
-          
-          <div class="stat-card inactive">
-            <div class="stat-icon">
-              <el-icon size="20"><CircleClose /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ inactiveAndAbnormalMonitors.length }}</div>
-              <div class="stat-label">未启用</div>
-            </div>
           </div>
         </div>
 
@@ -133,8 +168,8 @@
               @selection-change="handleSelectionChange"
               :empty-text="filteredMonitors.length === 0 ? '暂无监控数据' : ''"
               size="default"
-              :cell-style="{ padding: '8px 6px' }"
-              :header-cell-style="{ padding: '10px 6px', background: '#fafafa' }"
+              :cell-style="{ padding: '6px 6px' }"
+              :header-cell-style="{ padding: '8px 6px', background: '#fafafa' }"
             >
               <el-table-column type="selection" width="50" />
               
@@ -166,12 +201,21 @@
               <el-table-column label="播主名称" width="140">
                 <template #default="{ row }">
                   <div class="author-name">
-                    <div class="author-nickname">
+                    <el-link 
+                      type="primary" 
+                      class="author-nickname"
+                      @click.stop="goToAuthor(row)"
+                    >
                       {{ row.authorInfo?.nickname || row.videoInfo?.authorId || 'N/A' }}
-                    </div>
-                    <div v-if="row.authorInfo?.followerCount" class="author-followers">
-                      粉丝: {{ formatFollowerCount(row.authorInfo.followerCount) }}
-                    </div>
+                    </el-link>
+                    <el-tag
+                      v-if="row.authorInfo?.followerCount"
+                      size="small"
+                      type="info"
+                      class="author-followers-tag"
+                    >
+                      粉丝 {{ formatFollowerCount(row.authorInfo.followerCount) }}
+                    </el-tag>
                   </div>
                 </template>
               </el-table-column>
@@ -482,11 +526,11 @@
           />
           
           <div class="progress-stats" v-if="currentTask.totalCount > 0">
-            <div class="stats-row">
+            <div class="task-stats-row">
               <span>总计：{{ currentTask.totalCount }}</span>
               <span>已处理：{{ currentTask.processedCount }}</span>
             </div>
-            <div class="stats-row">
+            <div class="task-stats-row">
               <span style="color: #67c23a;">成功：{{ currentTask.successCount }}</span>
               <span style="color: #909399;">跳过：{{ currentTask.skipCount }}</span>
               <span style="color: #f56c6c;">失败：{{ currentTask.errorCount }}</span>
@@ -520,17 +564,35 @@
       </template>
     </el-dialog>
 
+    <!-- 更新邮箱对话框 -->
+    <el-dialog
+      v-model="showUpdateEmailDialog"
+      title="更新邮箱"
+      width="420px"
+    >
+      <el-form :model="emailForm" label-width="80px">
+        <el-form-item label="邮箱">
+          <el-input v-model="emailForm.email" placeholder="请输入新的邮箱地址" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showUpdateEmailDialog = false">取消</el-button>
+        <el-button type="primary" :loading="updateEmailLoading" @click="submitUpdateEmail">确定</el-button>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { monitorApi } from '@/api/monitor'
 import { musicApi } from '@/api/music'
 import { videoApi } from '@/api/video'
 import { authorApi } from '@/api/author'
+import { authApi } from '@/api/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus,
@@ -550,10 +612,15 @@ import {
   View,
   Headset,
   ArrowDown,
+  ArrowLeft,
   Upload,
-  Collection
+  Collection,
+  Close,
+  Warning,
+  MagicStick
 } from '@element-plus/icons-vue'
 
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -564,6 +631,8 @@ const monitorList = ref([])
 const searchKeyword = ref('')
 const selectedRows = ref([])
 const musicOptions = ref([])
+const currentMusicId = ref(null) // 当前过滤的音乐ID
+const currentMusicInfo = ref(null)
 
 const showAddDialog = ref(false)
 const showBatchDialog = ref(false)
@@ -599,45 +668,103 @@ const currentTask = ref({
 
 const taskProgressTimer = ref(null)
 
+// 更新邮箱对话框
+const showUpdateEmailDialog = ref(false)
+const updateEmailLoading = ref(false)
+const emailForm = ref({ email: '' })
+
 const filteredMonitors = computed(() => {
-  if (!searchKeyword.value) return monitorList.value
+  let filtered = monitorList.value
   
-  return monitorList.value.filter(item => {
-    const awemeId = item.monitorVideo?.awemeId?.toString() || ''
-    const videoUrl = item.monitorVideo?.videoUrl || ''
-    const authorNickname = item.authorInfo?.nickname || ''
-    const authorId = item.videoInfo?.authorId || ''
+  // 根据当前过滤器选择监控视频
+  switch (currentFilter.value) {
+    case 'all':
+      filtered = monitorList.value
+      break
+    case 'monitoring':
+      filtered = monitorList.value.filter(item => item.monitorVideo?.status === 1)
+      break
+    case 'error':
+      filtered = monitorList.value.filter(item => {
+        const status = item.monitorVideo?.status
+        return status !== 0 && status !== 1
+      })
+      break
+    case 'auto':
+      filtered = monitorList.value.filter(item => item.monitorVideo?.type === 0)
+      break
+    default:
+      filtered = monitorList.value
+  }
+  
+  // 如果有音乐ID过滤条件
+  if (currentMusicId.value) {
+    filtered = filtered.filter(item => {
+      const itemMusicId = item.userMonitor?.musicId || item.monitorVideo?.musicId
+      return itemMusicId === currentMusicId.value
+    })
+  }
+  
+  // 如果有搜索关键词
+  if (searchKeyword.value) {
     const keyword = searchKeyword.value.toLowerCase()
-    
-    return awemeId.toLowerCase().includes(keyword) || 
-           videoUrl.toLowerCase().includes(keyword) ||
-           authorNickname.toLowerCase().includes(keyword) ||
-           authorId.toLowerCase().includes(keyword)
-  })
+    filtered = filtered.filter(item => {
+      const awemeId = item.monitorVideo?.awemeId?.toString() || ''
+      const videoUrl = item.monitorVideo?.videoUrl || ''
+      const authorNickname = item.authorInfo?.nickname || ''
+      const authorId = item.videoInfo?.authorId || ''
+      
+      return awemeId.toLowerCase().includes(keyword) || 
+             videoUrl.toLowerCase().includes(keyword) ||
+             authorNickname.toLowerCase().includes(keyword) ||
+             authorId.toLowerCase().includes(keyword)
+    })
+  }
+  
+  return filtered
 })
 
 const activeMonitors = computed(() => {
   // status=1是正常监控中
-  return filteredMonitors.value.filter(item => item.monitorVideo?.status === 1)
+  return monitorList.value.filter(item => item.monitorVideo?.status === 1)
 })
 
 const inactiveMonitors = computed(() => {
   // status=0是已停用
-  return filteredMonitors.value.filter(item => item.monitorVideo?.status === 0)
+  return monitorList.value.filter(item => item.monitorVideo?.status === 0)
 })
 
 const abnormalMonitors = computed(() => {
   // status=2,3等是监控异常
-  return filteredMonitors.value.filter(item => {
+  return monitorList.value.filter(item => {
     const status = item.monitorVideo?.status
     return status !== 0 && status !== 1
   })
 })
 
-const inactiveAndAbnormalMonitors = computed(() => {
-  // 合并已停用(status=0)和监控异常(status=2,3等)
-  return filteredMonitors.value.filter(item => item.monitorVideo?.status !== 1)
+const allMonitors = computed(() => {
+  return monitorList.value
 })
+
+const autoMonitors = computed(() => {
+  // type=0是自动添加
+  return monitorList.value.filter(item => item.monitorVideo?.type === 0)
+})
+
+const currentFilter = ref('all')
+
+const filterVideos = (filterType) => {
+  currentFilter.value = filterType
+  
+  const filterMessages = {
+    'all': '已显示所有监控视频',
+    'monitoring': '已过滤显示监控中的视频',
+    'error': '已过滤显示异常监控的视频',
+    'auto': '已过滤显示自动添加的视频'
+  }
+  
+  ElMessage.success(filterMessages[filterType] || '过滤完成')
+}
 
 const formatNumber = (num) => {
   if (!num) return '0'
@@ -1300,6 +1427,11 @@ const batchDelete = async () => {
 }
 
 const handleCommand = async (command) => {
+  if (command === 'updateEmail') {
+    emailForm.value.email = authStore.user?.email || ''
+    showUpdateEmailDialog.value = true
+    return
+  }
   if (command === 'logout') {
     try {
       await ElMessageBox.confirm('确认退出登录？', '提示', {
@@ -1313,7 +1445,72 @@ const handleCommand = async (command) => {
   }
 }
 
+const isValidEmail = (email) => {
+  const pattern = /^[\w.!#$%&'*+/=?^`{|}~-]+@[\w-]+(\.[\w-]+)+$/
+  return pattern.test(email)
+}
+
+const submitUpdateEmail = async () => {
+  const email = (emailForm.value.email || '').trim()
+  if (!email) {
+    ElMessage.warning('请输入邮箱地址')
+    return
+  }
+  if (!isValidEmail(email)) {
+    ElMessage.warning('邮箱格式不正确')
+    return
+  }
+  updateEmailLoading.value = true
+  try {
+    const res = await authApi.updateEmail({ email })
+    if (res.code === 200) {
+      authStore.setUser({ ...(authStore.user || {}), email })
+      ElMessage.success('邮箱更新成功')
+      showUpdateEmailDialog.value = false
+    } else {
+      ElMessage.error(res.message || '邮箱更新失败')
+    }
+  } catch (e) {
+    ElMessage.error('邮箱更新失败，请稍后重试')
+  } finally {
+    updateEmailLoading.value = false
+  }
+}
+
+const clearMusicFilter = () => {
+  currentMusicId.value = null
+  ElMessage.success('已清除音乐过滤')
+}
+
+const goBackFromMusic = () => {
+  router.push('/music')
+}
+
+const goToAuthor = (row) => {
+  const userId = row?.videoInfo?.authorId || row?.authorInfo?.userId
+  if (userId) {
+    router.push(`/author/${userId}`)
+  } else {
+    ElMessage.warning('无法获取播主ID')
+  }
+}
+
+const handleRowClick = (row) => {
+  // 点击监控行时跳转到该监控的统计页面
+  if (row.monitorVideo?.awemeId) {
+    viewStats(row.monitorVideo.awemeId)
+  }
+}
+
 onMounted(() => {
+  // 检查是否有音乐ID查询参数
+  if (route.query.musicId) {
+    currentMusicId.value = parseInt(route.query.musicId)
+    // 拉取音乐名称用于标题显示
+    musicApi.getMusicById(currentMusicId.value).then(res => {
+      if (res?.code === 200) currentMusicInfo.value = res.data
+    }).catch(() => {})
+  }
   loadMonitorVideos()
 })
 
@@ -1407,6 +1604,24 @@ onUnmounted(() => {
   color: #1f2937;
 }
 
+.music-filter-tip {
+  font-size: 16px;
+  color: #409eff;
+  font-weight: normal;
+  margin-left: 12px;
+}
+
+.music-meta {
+  font-size: 18px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.page-meta {
+  margin: 6px 0 0 0;
+  color: #6b7280;
+}
+
 .page-desc {
   margin: 0;
   color: #6b7280;
@@ -1417,11 +1632,18 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 12px; /* 更靠近监控列表 */
   padding: 16px 20px;
   background: #fff;
   border-radius: 12px;
   border: 1px solid #e6e8eb;
+}
+
+/* 区块轻分割线 */
+.section-divider {
+  height: 1px;
+  background: #eceff5;
+  margin: 4px 0 10px; /* 减小与统计卡片的距离 */
 }
 
 .toolbar-left {
@@ -1430,9 +1652,10 @@ onUnmounted(() => {
 }
 
 .stats-row {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 24px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin: 20px 0 16px; /* 减小与分割线的距离 */
 }
 
 .stat-card {
@@ -1445,6 +1668,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 16px;
   transition: all 0.3s ease;
+  cursor: pointer; /* 添加鼠标指针样式 */
 }
 
 .stat-card:hover {
@@ -1453,18 +1677,33 @@ onUnmounted(() => {
 }
 
 .stat-card.total .stat-icon {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, #6366f1 0%, #8b8df5 100%);
+  color: #fff;
 }
 
-.stat-card.active .stat-icon {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: white;
+.stat-card.monitoring .stat-icon {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  color: #fff;
 }
 
 .stat-card.inactive .stat-icon {
   background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
   color: white;
+}
+
+.stat-card.error .stat-icon {
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  color: #fff;
+}
+
+.stat-card.auto .stat-icon {
+  background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%);
+  color: #fff;
+}
+
+.stat-card.is-active {
+  border: 2px solid rgba(99, 102, 241, 0.35);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.18);
 }
 
 .stat-icon {
@@ -1529,21 +1768,21 @@ onUnmounted(() => {
 .author-name {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .author-nickname {
-  font-weight: 500;
-  color: #374151;
-  font-size: 13px;
-  line-height: 1.4;
+  font-weight: 600;
+  color: var(--el-color-primary);
+  font-size: 12px;
+  line-height: 1.2;
 }
 
-.author-followers {
-  font-size: 11px;
-  color: #6b7280;
-  font-weight: normal;
-  line-height: 1.2;
+.author-followers-tag {
+  border: none;
+  background: #f4f6fb;
+  color: #62738a;
 }
 
 .stats-preview {
@@ -1716,7 +1955,7 @@ onUnmounted(() => {
   border-radius: 6px;
 }
 
-.stats-row {
+.task-stats-row {
   display: flex;
   justify-content: space-between;
   margin: 5px 0;

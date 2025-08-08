@@ -1,0 +1,148 @@
+/* 全局主题与优雅风格增强 */
+
+:root {
+  /* 主题色（Element Plus 变量） */
+  --el-color-primary: #6366f1; /* Indigo */
+  --el-color-primary-light-3: #8b8df5;
+  --el-color-primary-light-5: #a8abf7;
+  --el-color-primary-light-7: #c5c7fa;
+  --el-color-primary-light-8: #d6d7fb;
+  --el-color-primary-light-9: #e8e9fd;
+  --el-color-primary-dark-2: #4f52c1;
+
+  /* 边角/阴影/字体等通用变量 */
+  --radius-card: 12px;
+  --radius-base: 10px;
+  --radius-small: 8px;
+  --shadow-card: 0 6px 18px rgba(17, 24, 39, 0.06);
+  --shadow-card-hover: 0 10px 26px rgba(17, 24, 39, 0.10);
+  --app-bg: #f5f7fa;
+  --text-strong: #1f2937;
+  --text-regular: #374151;
+  --text-secondary: #6b7280;
+
+  /* Element Plus 全局圆角 */
+  --el-border-radius-base: var(--radius-base);
+  --el-border-radius-small: var(--radius-small);
+  --el-border-radius-round: 999px;
+
+  /* 表格相关 */
+  --el-table-header-bg-color: #fafbfc;
+  --el-table-header-text-color: #374151;
+  --el-table-row-hover-bg-color: #f7faff;
+}
+
+html, body {
+  background: var(--app-bg);
+  color: var(--text-regular);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 链接颜色与交互态 */
+a {
+  color: var(--el-color-primary);
+  text-decoration: none;
+  transition: color .2s ease;
+}
+
+a:hover {
+  color: var(--el-color-primary-dark-2);
+}
+
+/* 滚动条更优雅 */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #d0d5dd;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #c1c7d0;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 卡片统一风格 */
+.el-card {
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-card);
+  border-color: #eef0f3 !important;
+  transition: box-shadow .25s ease, transform .25s ease;
+}
+
+.el-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-1px);
+}
+
+/* 弹窗更圆润 */
+.el-dialog {
+  border-radius: var(--radius-card) !important;
+  overflow: hidden;
+}
+
+.el-dialog__header {
+  padding-bottom: 8px;
+}
+
+/* 输入类控件统一圆角 */
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner,
+.el-input-number,
+.el-upload-dragger {
+  border-radius: var(--radius-base) !important;
+}
+
+/* 按钮更舒适的圆角与过渡 */
+.el-button {
+  border-radius: var(--radius-base) !important;
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+
+.el-button:hover {
+  box-shadow: 0 6px 14px rgba(99, 102, 241, 0.18);
+  transform: translateY(-1px);
+}
+
+/* 表格观感优化 */
+.el-table {
+  --el-table-header-bg-color: var(--el-table-header-bg-color);
+  --el-table-header-text-color: var(--el-table-header-text-color);
+  --el-table-row-hover-bg-color: var(--el-table-row-hover-bg-color);
+  border-radius: var(--radius-small);
+  overflow: hidden;
+}
+
+.el-table th {
+  font-weight: 600;
+}
+
+/* 消息提示更圆润 */
+.el-message {
+  border-radius: var(--radius-base) !important;
+}
+
+/* 标签（Tag）更柔和 */
+.el-tag {
+  border-radius: var(--radius-small) !important;
+}
+
+/* 进度条更细腻 */
+.el-progress-bar__outer {
+  border-radius: var(--radius-round) !important;
+}
+
+/* Tooltip 圆角 */
+.el-popper.is-dark {
+  border-radius: 6px !important;
+}

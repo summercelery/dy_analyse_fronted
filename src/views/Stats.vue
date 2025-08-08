@@ -15,6 +15,7 @@
             <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="updateEmail">更新邮箱</el-dropdown-item>
                 <el-dropdown-item command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -27,17 +28,13 @@
       <!-- 侧边导航 -->
       <nav class="sidebar">
         <el-menu
-          :default-active="'/dashboard'"
+          :default-active="'/music'"
           router
           class="sidebar-menu"
         >
-          <el-menu-item index="/dashboard" class="menu-item">
-            <el-icon><Odometer /></el-icon>
-            <span>数据概览</span>
-          </el-menu-item>
-          <el-menu-item index="/monitor" class="menu-item">
-            <el-icon><View /></el-icon>
-            <span>监控管理</span>
+          <el-menu-item index="/music" class="menu-item">
+            <el-icon><Headset /></el-icon>
+            <span>音乐管理</span>
           </el-menu-item>
         </el-menu>
       </nav>
@@ -48,8 +45,8 @@
         <div class="page-header">
           <div class="page-breadcrumb">
             <el-breadcrumb separator="/">
-              <el-breadcrumb-item @click="$router.push('/dashboard')" class="breadcrumb-link">
-                数据概览
+              <el-breadcrumb-item @click="$router.push('/music')" class="breadcrumb-link">
+                音乐管理
               </el-breadcrumb-item>
               <el-breadcrumb-item @click="$router.push('/monitor')" class="breadcrumb-link">
                 监控管理
@@ -90,7 +87,11 @@
         <div v-loading="loading" class="stats-content">
           <!-- 统计卡片 -->
           <div v-if="latestStats" class="stats-grid">
-            <div class="stat-card likes">
+            <div 
+              class="stat-card likes"
+              :class="{ 'is-active': selectedStats.likes }"
+              @click="toggleStat('likes')"
+            >
               <div class="stat-icon">
                 <div class="heart-icon-large">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -110,7 +111,11 @@
               </div>
             </div>
 
-            <div class="stat-card comments">
+            <div 
+              class="stat-card comments"
+              :class="{ 'is-active': selectedStats.comments }"
+              @click="toggleStat('comments')"
+            >
               <div class="stat-icon">
                 <el-icon size="24"><ChatDotRound /></el-icon>
               </div>
@@ -126,7 +131,11 @@
               </div>
             </div>
 
-            <div class="stat-card collects">
+            <div 
+              class="stat-card collects"
+              :class="{ 'is-active': selectedStats.collects }"
+              @click="toggleStat('collects')"
+            >
               <div class="stat-icon">
                 <el-icon size="24"><Collection /></el-icon>
               </div>
@@ -142,7 +151,11 @@
               </div>
             </div>
 
-            <div class="stat-card shares">
+            <div 
+              class="stat-card shares"
+              :class="{ 'is-active': selectedStats.shares }"
+              @click="toggleStat('shares')"
+            >
               <div class="stat-icon">
                 <el-icon size="24"><Share /></el-icon>
               </div>
@@ -165,19 +178,35 @@
               <div class="card-header">
                 <span class="card-title">数据趋势图</span>
                 <div class="chart-legend">
-                  <div class="legend-item">
+                  <div 
+                    class="legend-item"
+                    :class="{ 'legend-disabled': !selectedStats.likes }"
+                    @click="toggleStat('likes')"
+                  >
                     <div class="legend-dot likes-dot"></div>
                     <span>点赞</span>
                   </div>
-                  <div class="legend-item">
+                  <div 
+                    class="legend-item"
+                    :class="{ 'legend-disabled': !selectedStats.comments }"
+                    @click="toggleStat('comments')"
+                  >
                     <div class="legend-dot comments-dot"></div>
                     <span>评论</span>
                   </div>
-                  <div class="legend-item">
+                  <div 
+                    class="legend-item"
+                    :class="{ 'legend-disabled': !selectedStats.collects }"
+                    @click="toggleStat('collects')"
+                  >
                     <div class="legend-dot collects-dot"></div>
                     <span>收藏</span>
                   </div>
-                  <div class="legend-item">
+                  <div 
+                    class="legend-item"
+                    :class="{ 'legend-disabled': !selectedStats.shares }"
+                    @click="toggleStat('shares')"
+                  >
                     <div class="legend-dot shares-dot"></div>
                     <span>分享</span>
                   </div>
@@ -200,6 +229,22 @@
         </div>
       </main>
     </div>
+    <!-- 更新邮箱对话框 -->
+    <el-dialog
+      v-model="showUpdateEmailDialog"
+      title="更新邮箱"
+      width="420px"
+    >
+      <el-form :model="emailForm" label-width="80px">
+        <el-form-item label="邮箱">
+          <el-input v-model="emailForm.email" placeholder="请输入新的邮箱地址" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showUpdateEmailDialog = false">取消</el-button>
+        <el-button type="primary" :loading="updateEmailLoading" @click="submitUpdateEmail">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -208,7 +253,18 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { videoApi } from '@/api/video'
+import { authApi } from '@/api/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  ArrowLeft,
+  Refresh,
+  Headset,
+  ArrowUp,
+  ArrowDown,
+  ChatDotRound,
+  Collection,
+  Share
+} from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -237,6 +293,7 @@ const loading = ref(false)
 const latestStats = ref(null)
 const statsDays = ref('7')
 const chartOption = ref(null)
+const chartData = ref(null) // 存储原始图表数据
 const trends = ref({
   digg: 0,
   comment: 0,
@@ -244,7 +301,20 @@ const trends = ref({
   share: 0
 })
 
+// 统计项选中状态，默认全部选中
+const selectedStats = ref({
+  likes: true,
+  comments: true,
+  collects: true,
+  shares: true
+})
+
 const awemeId = route.params.awemeId
+
+// 更新邮箱对话框状态
+const showUpdateEmailDialog = ref(false)
+const updateEmailLoading = ref(false)
+const emailForm = ref({ email: '' })
 
 const formatNumber = (num) => {
   if (!num) return '0'
@@ -252,6 +322,22 @@ const formatNumber = (num) => {
     return (num / 10000).toFixed(1) + 'w'
   }
   return num.toString()
+}
+
+// 切换统计项选中状态
+const toggleStat = (statType) => {
+  selectedStats.value[statType] = !selectedStats.value[statType]
+  
+  // 如果所有统计项都被取消选中，则重新选中当前项
+  const allUnselected = Object.values(selectedStats.value).every(selected => !selected)
+  if (allUnselected) {
+    selectedStats.value[statType] = true
+  }
+  
+  // 重新渲染图表
+  if (chartData.value) {
+    renderChart(chartData.value)
+  }
 }
 
 const loadLatestStats = async () => {
@@ -269,6 +355,7 @@ const loadStatsChart = async () => {
   try {
     const response = await videoApi.getVideoStatsChart(awemeId, statsDays.value)
     if (response.code === 200) {
+      chartData.value = response.data
       renderChart(response.data)
     }
   } catch (error) {
@@ -280,6 +367,91 @@ const renderChart = (data) => {
   if (!data || !data.timestamps) {
     chartOption.value = null
     return
+  }
+
+  // 根据选中状态构建系列数据
+  const series = []
+  
+  if (selectedStats.value.likes) {
+    series.push({
+      name: '点赞数',
+      type: 'line',
+      data: data.diggCounts || [],
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: {
+        width: 3,
+        color: '#ff6b9d'
+      },
+      itemStyle: {
+        color: '#ff6b9d'
+      },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(255, 107, 157, 0.3)' },
+            { offset: 1, color: 'rgba(255, 107, 157, 0.05)' }
+          ]
+        }
+      }
+    })
+  }
+  
+  if (selectedStats.value.comments) {
+    series.push({
+      name: '评论数',
+      type: 'line',
+      data: data.commentCounts || [],
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: {
+        width: 3,
+        color: '#4ecdc4'
+      },
+      itemStyle: {
+        color: '#4ecdc4'
+      }
+    })
+  }
+  
+  if (selectedStats.value.collects) {
+    series.push({
+      name: '收藏数',
+      type: 'line',
+      data: data.collectCounts || [],
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: {
+        width: 3,
+        color: '#45b7d1'
+      },
+      itemStyle: {
+        color: '#45b7d1'
+      }
+    })
+  }
+  
+  if (selectedStats.value.shares) {
+    series.push({
+      name: '分享数',
+      type: 'line',
+      data: data.shareCounts || [],
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: {
+        width: 3,
+        color: '#f9ca24'
+      },
+      itemStyle: {
+        color: '#f9ca24'
+      }
+    })
   }
 
   chartOption.value = {
@@ -336,82 +508,16 @@ const renderChart = (data) => {
         }
       }
     },
-    series: [
-      {
-        name: '点赞数',
-        type: 'line',
-        data: data.diggCounts || [],
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        lineStyle: {
-          width: 3,
-          color: '#ff6b9d'
-        },
-        itemStyle: {
-          color: '#ff6b9d'
-        },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: 'rgba(255, 107, 157, 0.3)' },
-              { offset: 1, color: 'rgba(255, 107, 157, 0.05)' }
-            ]
-          }
-        }
-      },
-      {
-        name: '评论数',
-        type: 'line',
-        data: data.commentCounts || [],
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        lineStyle: {
-          width: 3,
-          color: '#4ecdc4'
-        },
-        itemStyle: {
-          color: '#4ecdc4'
-        }
-      },
-      {
-        name: '收藏数',
-        type: 'line',
-        data: data.collectCounts || [],
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        lineStyle: {
-          width: 3,
-          color: '#45b7d1'
-        },
-        itemStyle: {
-          color: '#45b7d1'
-        }
-      },
-      {
-        name: '分享数',
-        type: 'line',
-        data: data.shareCounts || [],
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        lineStyle: {
-          width: 3,
-          color: '#f9ca24'
-        },
-        itemStyle: {
-          color: '#f9ca24'
-        }
-      }
-    ]
+    series: series
   }
 }
 
 const handleCommand = async (command) => {
+  if (command === 'updateEmail') {
+    emailForm.value.email = authStore.user?.email || ''
+    showUpdateEmailDialog.value = true
+    return
+  }
   if (command === 'logout') {
     try {
       await ElMessageBox.confirm('确认退出登录？', '提示', {
@@ -422,6 +528,39 @@ const handleCommand = async (command) => {
     } catch (error) {
       // 用户取消
     }
+  }
+}
+
+const isValidEmail = (email) => {
+  const pattern = /^[\w.!#$%&'*+/=?^`{|}~-]+@[\w-]+(\.[\w-]+)+$/
+  return pattern.test(email)
+}
+
+const submitUpdateEmail = async () => {
+  const email = (emailForm.value.email || '').trim()
+  if (!email) {
+    ElMessage.warning('请输入邮箱地址')
+    return
+  }
+  if (!isValidEmail(email)) {
+    ElMessage.warning('邮箱格式不正确')
+    return
+  }
+  updateEmailLoading.value = true
+  try {
+    const res = await authApi.updateEmail({ email })
+    if (res.code === 200) {
+      // 同步更新本地用户信息
+      authStore.setUser({ ...(authStore.user || {}), email })
+      ElMessage.success('邮箱更新成功')
+      showUpdateEmailDialog.value = false
+    } else {
+      ElMessage.error(res.message || '邮箱更新失败')
+    }
+  } catch (e) {
+    ElMessage.error('邮箱更新失败，请稍后重试')
+  } finally {
+    updateEmailLoading.value = false
   }
 }
 
@@ -587,10 +726,22 @@ onMounted(() => {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .stat-card:hover {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+}
+
+.stat-card.is-active {
+  border: 2px solid rgba(99, 102, 241, 0.35);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.18);
+  transform: translateY(-2px);
+}
+
+.stat-card.is-active:hover {
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.25);
   transform: translateY(-4px);
 }
 
@@ -630,6 +781,12 @@ onMounted(() => {
   background: var(--gradient);
   color: white;
   flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.stat-card.is-active .stat-icon {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .stat-info {
@@ -642,6 +799,7 @@ onMounted(() => {
   color: #1f2937;
   line-height: 1.2;
   margin-bottom: 4px;
+  transition: color 0.3s ease;
 }
 
 .stat-label {
@@ -649,6 +807,7 @@ onMounted(() => {
   color: #6b7280;
   font-weight: 500;
   margin-bottom: 8px;
+  transition: color 0.3s ease;
 }
 
 .stat-trend {
@@ -666,6 +825,8 @@ onMounted(() => {
 .trend-down {
   color: #ef4444;
 }
+
+
 
 .chart-card {
   border-radius: 16px;
@@ -697,12 +858,32 @@ onMounted(() => {
   gap: 8px;
   font-size: 14px;
   color: #6b7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.legend-item:hover {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.legend-item.legend-disabled {
+  opacity: 0.4;
+  color: #9ca3af;
+}
+
+.legend-item.legend-disabled:hover {
+  opacity: 0.6;
+  background: rgba(156, 163, 175, 0.1);
 }
 
 .legend-dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
+  transition: all 0.2s ease;
 }
 
 .likes-dot {

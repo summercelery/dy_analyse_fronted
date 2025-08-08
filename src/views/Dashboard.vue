@@ -43,6 +43,10 @@
             <el-icon><Headset /></el-icon>
             <span>音乐管理</span>
           </el-menu-item>
+          <el-menu-item index="/music-monitor" class="menu-item">
+            <el-icon><Headset /></el-icon>
+            <span>音乐监控</span>
+          </el-menu-item>
         </el-menu>
       </nav>
 

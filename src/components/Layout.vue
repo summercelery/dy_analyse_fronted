@@ -32,25 +32,9 @@
             text-color="#fff"
             active-text-color="#ffd04b"
           >
-            <el-menu-item index="/dashboard">
-              <el-icon><Odometer /></el-icon>
-              <span>数据概览</span>
-            </el-menu-item>
-            <el-menu-item index="/monitor">
-              <el-icon><View /></el-icon>
-              <span>监控管理</span>
-            </el-menu-item>
-            <el-menu-item index="/music-monitor">
+            <el-menu-item index="/music">
               <el-icon><Headset /></el-icon>
-              <span>音乐监控</span>
-            </el-menu-item>
-            <el-menu-item index="/test">
-              <el-icon><Setting /></el-icon>
-              <span>测试页面</span>
-            </el-menu-item>
-            <el-menu-item index="/basic">
-              <el-icon><Document /></el-icon>
-              <span>基础测试</span>
+              <span>音乐管理</span>
             </el-menu-item>
           </el-menu>
         </el-aside>

@@ -31,14 +31,6 @@
           router
           class="sidebar-menu"
         >
-          <el-menu-item index="/dashboard" class="menu-item">
-            <el-icon><Odometer /></el-icon>
-            <span>数据概览</span>
-          </el-menu-item>
-          <el-menu-item index="/monitor" class="menu-item">
-            <el-icon><View /></el-icon>
-            <span>监控管理</span>
-          </el-menu-item>
           <el-menu-item index="/music" class="menu-item">
             <el-icon><Headset /></el-icon>
             <span>音乐管理</span>
@@ -59,9 +51,6 @@
             <el-button type="primary" @click="showAddDialog = true" :icon="Plus">
               添加音乐
             </el-button>
-            <el-button @click="loadMusicList" :loading="loading" :icon="Refresh">
-              刷新
-            </el-button>
           </div>
           <div class="toolbar-right">
             <el-input
@@ -72,19 +61,6 @@
               clearable
               @input="handleSearch"
             />
-          </div>
-        </div>
-
-        <!-- 统计卡片 -->
-        <div class="stats-row">
-          <div class="stat-card total">
-            <div class="stat-icon">
-              <el-icon size="20"><Headset /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ filteredMusicList.length }}</div>
-              <div class="stat-label">音乐总数</div>
-            </div>
           </div>
         </div>
 
@@ -157,6 +133,16 @@
               <el-table-column label="操作" width="200" fixed="right">
                 <template #default="{ row }">
                   <div class="table-actions">
+                    <el-tooltip content="查看详情" placement="top">
+                      <el-button 
+                        type="primary" 
+                        size="small" 
+                        :icon="View"
+                        @click="viewMusicDetail(row)"
+                        link
+                      />
+                    </el-tooltip>
+                    
                     <el-tooltip content="编辑音乐" placement="top">
                       <el-button 
                         type="primary" 
@@ -437,6 +423,14 @@ const handleCommand = async (command) => {
       // 用户取消
     }
   }
+}
+
+const handleRowClick = (row) => {
+  viewMusicDetail(row)
+}
+
+const viewMusicDetail = (music) => {
+  router.push({ path: '/monitor', query: { musicId: music.id } })
 }
 
 onMounted(() => {

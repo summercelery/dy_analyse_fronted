@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/auth'
 const routes = [
   {
     path: '/',
-    redirect: '/dashboard'
+    redirect: '/music'
   },
   {
     path: '/login',
@@ -61,6 +61,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/author/:userId',
+    name: 'AuthorDetail',
+    component: () => import('@/views/AuthorDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/test',
     name: 'Test',
     component: () => import('@/views/TestDashboard.vue'),
@@ -108,8 +114,8 @@ router.beforeEach(async (to, from, next) => {
     console.log('需要认证但未登录，跳转到登录页')
     next('/login')
   } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
-    console.log('已登录用户访问登录页，跳转到dashboard')
-    next('/dashboard')
+    console.log('已登录用户访问登录页，跳转到music')
+    next('/music')
   } else {
     console.log('路由守卫通过')
     next()
