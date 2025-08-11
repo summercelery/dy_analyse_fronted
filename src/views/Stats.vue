@@ -368,6 +368,11 @@ const renderChart = (data) => {
     chartOption.value = null
     return
   }
+  
+  // 调试日志
+  console.log('原始数据:', data)
+  console.log('时间戳数据:', data.timestamps)
+  console.log('点赞数据:', data.diggCounts)
 
   // 根据选中状态构建系列数据
   const series = []
@@ -376,7 +381,7 @@ const renderChart = (data) => {
     series.push({
       name: '点赞数',
       type: 'line',
-      data: data.diggCounts || [],
+      data: (data.diggCounts || []).map((value, index) => [new Date(data.timestamps[index]).getTime(), value]),
       smooth: true,
       symbol: 'circle',
       symbolSize: 6,
@@ -404,7 +409,7 @@ const renderChart = (data) => {
     series.push({
       name: '评论数',
       type: 'line',
-      data: data.commentCounts || [],
+      data: (data.commentCounts || []).map((value, index) => [new Date(data.timestamps[index]).getTime(), value]),
       smooth: true,
       symbol: 'circle',
       symbolSize: 6,
@@ -422,7 +427,7 @@ const renderChart = (data) => {
     series.push({
       name: '收藏数',
       type: 'line',
-      data: data.collectCounts || [],
+      data: (data.collectCounts || []).map((value, index) => [new Date(data.timestamps[index]).getTime(), value]),
       smooth: true,
       symbol: 'circle',
       symbolSize: 6,
@@ -440,7 +445,7 @@ const renderChart = (data) => {
     series.push({
       name: '分享数',
       type: 'line',
-      data: data.shareCounts || [],
+      data: (data.shareCounts || []).map((value, index) => [new Date(data.timestamps[index]).getTime(), value]),
       smooth: true,
       symbol: 'circle',
       symbolSize: 6,
@@ -474,15 +479,24 @@ const renderChart = (data) => {
       containLabel: true
     },
     xAxis: {
-      type: 'category',
-      data: data.timestamps,
+      type: 'time',
       axisLine: {
         lineStyle: {
           color: '#e6e8eb'
         }
       },
       axisLabel: {
-        color: '#6b7280'
+        color: '#6b7280',
+        formatter: (value) => {
+          // value 是时间戳，直接使用
+          const date = new Date(value)
+          const month = (date.getMonth() + 1).toString().padStart(2, '0')
+          const day = date.getDate().toString().padStart(2, '0')
+          return `${month}-${day}`
+        }
+      },
+      splitLine: {
+        show: false
       }
     },
     yAxis: {

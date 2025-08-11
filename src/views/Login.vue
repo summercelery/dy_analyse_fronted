@@ -168,7 +168,7 @@ const handleLogin = async () => {
       try {
         const success = await authStore.login(loginForm)
         if (success) {
-          router.push('/dashboard')
+          router.push('/music')
         }
       } finally {
         loginLoading.value = false

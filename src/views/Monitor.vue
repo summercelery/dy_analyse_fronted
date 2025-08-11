@@ -176,24 +176,41 @@
               <el-table-column label="视频ID" width="140">
                 <template #default="{ row }">
                   <div class="video-id">
-                    {{ row.monitorVideo?.awemeId || 'N/A' }}
+                    <el-link 
+                      v-if="row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId"
+                      :href="`https://www.douyin.com/video/${row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId}`" 
+                      target="_blank"
+                      type="primary"
+                      class="video-id-link"
+                    >
+                      {{ row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId || 'N/A' }}
+                    </el-link>
+                    <span v-else>{{ row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId || 'N/A' }}</span>
+                  </div>
+                  <!-- 调试信息 -->
+                  <div v-if="false" style="font-size: 10px; color: #999;">
+                    Debug: {{ JSON.stringify({
+                      awemeId: row.monitorVideo?.awemeId,
+                      id: row.monitorVideo?.id,
+                      rowAwemeId: row.awemeId,
+                      workUrl: row.monitorVideo?.workUrl
+                    }) }}
                   </div>
                 </template>
               </el-table-column>
               
-              <el-table-column label="视频链接" width="280">
+              <el-table-column label="视频描述" width="200">
                 <template #default="{ row }">
-                  <div class="video-url-wrap">
-                    <el-link 
-                      v-if="row.monitorVideo?.videoUrl"
-                      :href="row.monitorVideo.videoUrl" 
-                      target="_blank"
-                      type="primary"
-                      class="video-link"
+                  <div class="video-desc">
+                    <el-tooltip 
+                      v-if="getCleanDescription(row)"
+                      :content="getCleanDescription(row)"
+                      placement="top"
+                      :show-after="500"
                     >
-                      {{ row.monitorVideo.videoUrl }}
-                    </el-link>
-                    <span v-else class="na-text">N/A</span>
+                      <span class="desc-text">{{ getCleanDescription(row) }}</span>
+                    </el-tooltip>
+                    <span v-else class="na-text">无描述</span>
                   </div>
                 </template>
               </el-table-column>
@@ -220,18 +237,6 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="状态" width="100" align="center">
-                <template #default="{ row }">
-                  <el-tag 
-                    :type="getStatusType(row.monitorVideo?.status)"
-                    size="small"
-                    class="status-tag"
-                  >
-                    {{ getStatusText(row.monitorVideo?.status) }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              
               <el-table-column label="关联音乐" width="130">
                 <template #default="{ row }">
                   <div v-if="row.musicInfo" class="music-info">
@@ -239,6 +244,31 @@
                     <div class="music-author">{{ row.musicInfo.author }}</div>
                   </div>
                   <span v-else class="na-text">未关联音乐</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="话题标签" width="200">
+                <template #default="{ row }">
+                  <div v-if="getTopicsArray(row).length > 0" class="hashtag-list">
+                    <el-tag
+                      v-for="tag in getTopicsArray(row).slice(0, 5)"
+                      :key="tag"
+                      size="small"
+                      type="info"
+                      class="hashtag-tag"
+                    >
+                      {{ tag }}
+                    </el-tag>
+                    <el-tooltip 
+                      v-if="getTopicsArray(row).length > 5"
+                      :content="getTopicsArray(row).slice(5).join('、')"
+                      placement="top"
+                    >
+                      <el-tag size="small" type="info" class="hashtag-more">
+                        +{{ getTopicsArray(row).length - 5 }}
+                      </el-tag>
+                    </el-tooltip>
+                  </div>
+                  <span v-else class="na-text">无话题标签</span>
                 </template>
               </el-table-column>
               
@@ -267,6 +297,18 @@
                   <div class="publish-time">
                     {{ formatPublishTime(row.monitorVideo?.videoPublishTime) }}
                   </div>
+                </template>
+              </el-table-column>
+              
+              <el-table-column label="状态" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag 
+                    :type="getStatusType(row.monitorVideo?.status)"
+                    size="small"
+                    class="status-tag"
+                  >
+                    {{ getStatusText(row.monitorVideo?.status) }}
+                  </el-tag>
                 </template>
               </el-table-column>
               
@@ -387,34 +429,25 @@
           </el-form-item>
         </template>
         
-        <el-form-item label="音乐选择" required>
-          <div style="display: flex; gap: 10px; width: 100%;">
-            <el-select
-              v-model="addForm.musicId"
-              placeholder="请选择音乐（必填）"
-              style="flex: 1"
-              filterable
-              remote
-              :remote-method="searchMusicRemote"
-              :loading="musicSearchLoading"
-              clearable
-              @focus="loadMusicOptions"
+        <el-form-item label="音乐信息" v-if="currentMusicId && currentMusicInfo">
+          <div class="music-info-display">
+            <div class="music-title">{{ currentMusicInfo.title }} - {{ currentMusicInfo.author }}</div>
+            <div class="music-album" v-if="currentMusicInfo.album">专辑：{{ currentMusicInfo.album }}</div>
+            <div class="music-tags" v-if="currentMusicInfo.tagList">标签：{{ currentMusicInfo.tagList }}</div>
+          </div>
+        </el-form-item>
+        <el-form-item label="音乐信息" v-else>
+          <div class="music-info-display">
+            <el-alert
+              title="请先选择音乐"
+              type="warning"
+              :closable="false"
+              show-icon
             >
-              <el-option
-                v-for="music in musicOptions"
-                :key="music.id"
-                :label="`${music.title} - ${music.author}`"
-                :value="music.id"
-              >
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span>{{ music.title }}</span>
-                  <span style="color: #8492a6; font-size: 13px;">{{ music.author }}</span>
-                </div>
-              </el-option>
-            </el-select>
-            <el-button @click="showMusicDialog = true" :icon="Plus" size="default">
-              新建
-            </el-button>
+              <template #default>
+                <p>添加监控视频前，请先在音乐管理页面选择要监控的音乐</p>
+              </template>
+            </el-alert>
           </div>
         </el-form-item>
       </el-form>
@@ -425,7 +458,7 @@
           type="primary" 
           @click="addMode === 'single' ? handleAddMonitor() : handleExcelUpload()" 
           :loading="addMode === 'single' ? addLoading : excelUploading"
-          :disabled="addMode === 'batch' && (!addForm.musicId || !addForm.file)"
+          :disabled="addMode === 'batch' && !addForm.file"
         >
           {{ addMode === 'single' ? '添加监控' : '开始导入' }}
         </el-button>
@@ -642,7 +675,6 @@ const excelUploading = ref(false)
 const addMode = ref('single') // 'single' 或 'batch'
 const addForm = ref({
   videoUrl: '',
-  musicId: null,
   file: null
 })
 
@@ -720,8 +752,13 @@ const filteredMonitors = computed(() => {
              authorId.toLowerCase().includes(keyword)
     })
   }
-  
-  return filtered
+  // 根据点赞数从大到小排序（无数据按0处理），不修改原数组
+  const sorted = filtered.slice().sort((a, b) => {
+    const aLikes = a?.latestStats?.diggCount || 0
+    const bLikes = b?.latestStats?.diggCount || 0
+    return bLikes - aLikes
+  })
+  return sorted
 })
 
 const activeMonitors = computed(() => {
@@ -764,6 +801,67 @@ const filterVideos = (filterType) => {
   }
   
   ElMessage.success(filterMessages[filterType] || '过滤完成')
+}
+
+// 安全获取话题标签数组
+const getTopicsArray = (row) => {
+  // 尝试从多个可能的位置获取topics数据
+  let topics = null
+  
+  // 首先尝试从videoInfo.topics获取
+  if (row.videoInfo?.topics) {
+    topics = row.videoInfo.topics
+  }
+  // 然后尝试从根级别的topics获取
+  else if (row.topics) {
+    topics = row.topics
+  }
+  
+  // 确保topics是数组类型
+  if (Array.isArray(topics)) {
+    return topics
+  }
+  
+  // 如果topics是字符串，尝试解析（可能是JSON字符串）
+  if (typeof topics === 'string') {
+    try {
+      const parsed = JSON.parse(topics)
+      if (Array.isArray(parsed)) {
+        return parsed
+      }
+    } catch (e) {
+      // 解析失败，返回空数组
+    }
+  }
+  
+  // 默认返回空数组
+  return []
+}
+
+// 获取清理后的视频描述（去除#内容）
+const getCleanDescription = (row) => {
+  // 尝试从多个可能的位置获取desc数据
+  let desc = null
+  
+  // 首先尝试从videoInfo.desc获取
+  if (row.videoInfo?.desc) {
+    desc = row.videoInfo.desc
+  }
+  // 然后尝试从根级别的desc获取
+  else if (row.desc) {
+    desc = row.desc
+  }
+  
+  // 如果没有描述，返回空字符串
+  if (!desc) {
+    return ''
+  }
+  
+  // 去除所有#开头的内容（包括#号本身）
+  const cleanDesc = desc.replace(/#[^\s#]*/g, '').trim()
+  
+  // 如果清理后为空，返回原描述
+  return cleanDesc || desc
 }
 
 const formatNumber = (num) => {
@@ -824,8 +922,17 @@ const loadMonitorVideos = async () => {
     console.log('Monitor页面: 监控列表API响应:', response)
     
     if (response.code === 200) {
-      const data = response.data || []
+      let data = response.data || []
       console.log('Monitor页面: 处理后的监控数据:', data)
+      
+      // 如果有当前音乐ID，过滤出该音乐的监控数据
+      if (currentMusicId.value) {
+        data = data.filter(item => {
+          const itemMusicId = item.userMonitor?.musicId || item.monitorVideo?.musicId
+          return itemMusicId == currentMusicId.value
+        })
+        console.log('Monitor页面: 过滤后的音乐监控数据:', data)
+      }
       
       // 检查数据结构并记录
       if (data.length > 0) {
@@ -990,9 +1097,9 @@ const handleAddMonitor = async () => {
     return
   }
   
-  // 根据API文档，音乐ID是必选项
-  if (!addForm.value.musicId) {
-    ElMessage.warning('请选择音乐，音乐为必选项')
+  // 检查是否有当前音乐ID
+  if (!currentMusicId.value) {
+    ElMessage.warning('请先选择要监控的音乐')
     return
   }
   
@@ -1000,7 +1107,7 @@ const handleAddMonitor = async () => {
   try {
     const response = await monitorApi.addMonitor({
       videoUrl: addForm.value.videoUrl.trim(),
-      musicId: addForm.value.musicId
+      musicId: currentMusicId.value
     })
     
     if (response.code === 200) {
@@ -1008,13 +1115,13 @@ const handleAddMonitor = async () => {
       showAddDialog.value = false
       addForm.value = {
         videoUrl: '',
-        musicId: null
+        file: null
       }
       await loadMonitorVideos()
     } else {
       // 根据API文档的具体错误信息进行处理
       if (response.message?.includes('音乐ID不能为空，音乐为必选项')) {
-        ElMessage.error('音乐为必选项，请选择一个音乐')
+        ElMessage.error('音乐为必选项，请先选择音乐')
       } else if (response.message?.includes('指定的音乐不存在，请选择有效的音乐')) {
         ElMessage.error('所选音乐不存在，请重新选择')
       } else if (response.message?.includes('视频链接不能为空')) {
@@ -1068,7 +1175,6 @@ const searchMusicRemote = async (query) => {
 const resetAddForm = () => {
   addForm.value = {
     videoUrl: '',
-    musicId: null,
     file: null
   }
   // 清理上传组件
@@ -1165,8 +1271,9 @@ const handleFileRemove = () => {
 }
 
 const handleExcelUpload = async () => {
-  if (!addForm.value.musicId) {
-    ElMessage.warning('请选择音乐，音乐为必选项')
+  // 检查是否有当前音乐ID
+  if (!currentMusicId.value) {
+    ElMessage.warning('请先选择要监控的音乐')
     return
   }
   
@@ -1188,12 +1295,12 @@ const handleExcelUpload = async () => {
     // 创建FormData对象
     const formData = new FormData()
     formData.append('file', addForm.value.file)
-    formData.append('musicId', addForm.value.musicId.toString())
+    formData.append('musicId', currentMusicId.value.toString())
     
     console.log('开始上传Excel文件:', {
       fileName: addForm.value.file.name,
       fileSize: addForm.value.file.size,
-      musicId: addForm.value.musicId
+      musicId: currentMusicId.value
     })
     
     const response = await monitorApi.uploadExcelAsync(formData)
@@ -1222,7 +1329,7 @@ const handleExcelUpload = async () => {
       } else if (response.message?.includes('文件格式不正确，请上传Excel文件(.xlsx或.xls)')) {
         errorMessage = '文件格式不正确，请上传Excel文件(.xlsx或.xls)'
       } else if (response.message?.includes('音乐ID不能为空，音乐为必选项')) {
-        errorMessage = '音乐为必选项，请选择音乐'
+        errorMessage = '音乐为必选项，请先选择音乐'
       } else if (response.message?.includes('指定的音乐不存在，请选择有效的音乐')) {
         errorMessage = '所选音乐不存在，请重新选择音乐'
       }
@@ -1755,6 +1862,20 @@ onUnmounted(() => {
   color: #374151;
 }
 
+.video-id-link {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-weight: 600;
+  color: var(--el-color-primary);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.video-id-link:hover {
+  color: var(--el-color-primary-dark-2);
+  text-decoration: underline;
+}
+
 .video-url {
   max-width: 200px;
   overflow: hidden;
@@ -1822,6 +1943,32 @@ onUnmounted(() => {
   font-size: 11px;
   color: #6b7280;
   line-height: 1.2;
+}
+
+.hashtag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.hashtag-tag {
+  border: none;
+  background: #f0f9ff;
+  color: #0369a1;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.hashtag-more {
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 /* 紧凑版统计数据样式 */
@@ -1924,6 +2071,25 @@ onUnmounted(() => {
   max-width: 100%;
 }
 
+/* 视频描述样式 */
+.video-desc {
+  max-width: 100%;
+  line-height: 1.4;
+}
+
+.desc-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  color: #374151;
+  font-size: 12px;
+  cursor: pointer;
+  word-break: break-word;
+}
+
 :deep(.video-link .el-link__inner) {
   word-break: break-all;
   white-space: normal;
@@ -1998,5 +2164,30 @@ onUnmounted(() => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* 音乐信息显示样式 */
+.music-info-display {
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.music-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.music-album, .music-tags {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.music-tags {
+  margin-bottom: 0;
 }
 </style>
