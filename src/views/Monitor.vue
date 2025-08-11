@@ -487,49 +487,7 @@
       </template>
     </el-dialog>
 
-    <!-- 快速添加音乐对话框 -->
-    <el-dialog
-      v-model="showMusicDialog"
-      title="快速添加音乐"
-      width="500px"
-    >
-      <el-form :model="quickMusicForm" label-width="100px">
-        <el-form-item label="音乐标题" required>
-          <el-input 
-            v-model="quickMusicForm.title" 
-            placeholder="请输入音乐标题"
-          />
-        </el-form-item>
-        
-        <el-form-item label="作者" required>
-          <el-input 
-            v-model="quickMusicForm.author" 
-            placeholder="请输入作者名称"
-          />
-        </el-form-item>
-        
-        <el-form-item label="专辑">
-          <el-input 
-            v-model="quickMusicForm.album" 
-            placeholder="请输入专辑名称"
-          />
-        </el-form-item>
-        
-        <el-form-item label="标签">
-          <el-input 
-            v-model="quickMusicForm.tagList" 
-            placeholder="请输入标签，用逗号分隔（如：流行,抒情）"
-          />
-        </el-form-item>
-      </el-form>
-      
-      <template #footer>
-        <el-button @click="showMusicDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleQuickAddMusic">
-          添加音乐
-        </el-button>
-      </template>
-    </el-dialog>
+
 
     <!-- 任务进度对话框 -->
     <el-dialog
@@ -659,17 +617,14 @@ const authStore = useAuthStore()
 
 const loading = ref(false)
 const addLoading = ref(false)
-const musicSearchLoading = ref(false)
 const monitorList = ref([])
 const searchKeyword = ref('')
 const selectedRows = ref([])
-const musicOptions = ref([])
 const currentMusicId = ref(null) // 当前过滤的音乐ID
 const currentMusicInfo = ref(null)
 
 const showAddDialog = ref(false)
 const showBatchDialog = ref(false)
-const showMusicDialog = ref(false)
 const showTaskProgressDialog = ref(false)
 const excelUploading = ref(false)
 const addMode = ref('single') // 'single' 或 'batch'
@@ -678,12 +633,7 @@ const addForm = ref({
   file: null
 })
 
-const quickMusicForm = ref({
-  title: '',
-  author: '',
-  album: '',
-  tagList: ''
-})
+
 
 // 任务进度相关数据
 const currentTask = ref({
@@ -1139,37 +1089,7 @@ const handleAddMonitor = async () => {
   }
 }
 
-const loadMusicOptions = async () => {
-  if (musicOptions.value.length > 0) return
-  
-  try {
-    const response = await musicApi.getMusicList()
-    if (response.code === 200) {
-      musicOptions.value = response.data || []
-    }
-  } catch (error) {
-    console.error('加载音乐列表失败:', error)
-  }
-}
 
-const searchMusicRemote = async (query) => {
-  if (!query) {
-    await loadMusicOptions()
-    return
-  }
-  
-  musicSearchLoading.value = true
-  try {
-    const response = await musicApi.searchMusic(query)
-    if (response.code === 200) {
-      musicOptions.value = response.data || []
-    }
-  } catch (error) {
-    console.error('搜索音乐失败:', error)
-  } finally {
-    musicSearchLoading.value = false
-  }
-}
 
 // 重置添加表单
 const resetAddForm = () => {
@@ -1197,32 +1117,7 @@ const downloadTemplate = () => {
   document.body.removeChild(link)
 }
 
-const handleQuickAddMusic = async () => {
-  if (!quickMusicForm.value.title.trim() || !quickMusicForm.value.author.trim()) {
-    ElMessage.warning('请输入音乐标题和作者')
-    return
-  }
-  
-  try {
-    const response = await musicApi.addMusic(quickMusicForm.value)
-    if (response.code === 200) {
-      ElMessage.success('添加音乐成功')
-      showMusicDialog.value = false
-      quickMusicForm.value = {
-        title: '',
-        author: '',
-        album: '',
-        tagList: ''
-      }
-      await loadMusicOptions()
-    } else {
-      ElMessage.error(response.message || '添加音乐失败')
-    }
-  } catch (error) {
-    console.error('添加音乐失败:', error)
-    ElMessage.error('添加音乐失败')
-  }
-}
+
 
 // Excel文件处理函数
 const uploadRef = ref()
