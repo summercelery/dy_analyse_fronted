@@ -101,7 +101,7 @@
               
               <div class="music-tags" v-if="music.tagList">
                 <el-tag 
-                  v-for="tag in music.tagList.split(',')" 
+                  v-for="tag in parseTags(music.tagList)" 
                   :key="tag" 
                   size="small"
                   class="music-tag"
@@ -147,6 +147,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { musicApi } from '@/api/music'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { parseTags } from '@/utils/tagUtils'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -161,12 +162,13 @@ const filteredMusicList = computed(() => {
   if (!searchKeyword.value) return musicList.value
   
   const keyword = searchKeyword.value.toLowerCase()
-  return musicList.value.filter(music => 
-    music.title?.toLowerCase().includes(keyword) ||
-    music.author?.toLowerCase().includes(keyword) ||
-    music.album?.toLowerCase().includes(keyword) ||
-    music.tagList?.toLowerCase().includes(keyword)
-  )
+  return musicList.value.filter(music => {
+    const tags = parseTags(music.tagList)
+    return music.title?.toLowerCase().includes(keyword) ||
+           music.author?.toLowerCase().includes(keyword) ||
+           music.album?.toLowerCase().includes(keyword) ||
+           tags.some(tag => tag.toLowerCase().includes(keyword))
+  })
 })
 
 
@@ -231,6 +233,8 @@ const formatDate = (dateString) => {
   if (!dateString) return '-'
   return new Date(dateString).toLocaleDateString('zh-CN')
 }
+
+
 
 // 生命周期
 onMounted(() => {

@@ -43,14 +43,25 @@
       <main class="content">
         <div class="page-header">
           <template v-if="currentMusicId && currentMusicInfo">
-            <h2 class="page-title">
-              {{ currentMusicInfo.title }}
-              <span class="music-meta"> · {{ currentMusicInfo.author }}</span>
-            </h2>
-            <p class="page-meta">
-              <span>专辑：{{ currentMusicInfo.album || '-' }}</span>
-              <span v-if="currentMusicInfo.tagList"> · 标签：{{ currentMusicInfo.tagList }}</span>
-            </p>
+            <div class="page-title-section">
+              <h2 class="page-title">
+                {{ currentMusicInfo.title }}
+                <span class="music-meta"> · {{ currentMusicInfo.author }}</span>
+              </h2>
+              <p class="page-meta">
+                <span>专辑：{{ currentMusicInfo.album || '-' }}</span>
+                <span v-if="currentMusicInfo.tagList && parseTags(currentMusicInfo.tagList).length"> · 标签：
+                  <el-tag
+                    v-for="tag in parseTags(currentMusicInfo.tagList)"
+                    :key="tag"
+                    size="small"
+                    class="music-tag"
+                  >
+                    {{ tag }}
+                  </el-tag>
+                </span>
+              </p>
+            </div>
           </template>
           <template v-else>
             <h2 class="page-title">监控管理</h2>
@@ -433,7 +444,17 @@
           <div class="music-info-display">
             <div class="music-title">{{ currentMusicInfo.title }} - {{ currentMusicInfo.author }}</div>
             <div class="music-album" v-if="currentMusicInfo.album">专辑：{{ currentMusicInfo.album }}</div>
-            <div class="music-tags" v-if="currentMusicInfo.tagList">标签：{{ currentMusicInfo.tagList }}</div>
+            <div class="music-tags" v-if="currentMusicInfo.tagList && parseTags(currentMusicInfo.tagList).length">
+              标签：
+              <el-tag
+                v-for="tag in parseTags(currentMusicInfo.tagList)"
+                :key="tag"
+                size="small"
+                class="music-tag"
+              >
+                {{ tag }}
+              </el-tag>
+            </div>
           </div>
         </el-form-item>
         <el-form-item label="音乐信息" v-else>
@@ -572,6 +593,8 @@
       </template>
     </el-dialog>
 
+
+
   </div>
 </template>
 
@@ -585,6 +608,7 @@ import { videoApi } from '@/api/video'
 import { authorApi } from '@/api/author'
 import { authApi } from '@/api/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { parseTags } from '@/utils/tagUtils'
 import {
   Plus,
   Refresh,
@@ -654,6 +678,8 @@ const taskProgressTimer = ref(null)
 const showUpdateEmailDialog = ref(false)
 const updateEmailLoading = ref(false)
 const emailForm = ref({ email: '' })
+
+
 
 const filteredMonitors = computed(() => {
   let filtered = monitorList.value
@@ -1504,13 +1530,19 @@ const handleRowClick = (row) => {
   }
 }
 
+
+
+
+
 onMounted(() => {
   // 检查是否有音乐ID查询参数
   if (route.query.musicId) {
     currentMusicId.value = parseInt(route.query.musicId)
     // 拉取音乐名称用于标题显示
     musicApi.getMusicById(currentMusicId.value).then(res => {
-      if (res?.code === 200) currentMusicInfo.value = res.data
+      if (res?.code === 200) {
+        currentMusicInfo.value = res.data
+      }
     }).catch(() => {})
   }
   loadMonitorVideos()
@@ -1597,13 +1629,18 @@ onUnmounted(() => {
 
 .page-header {
   margin-bottom: 24px;
+  padding: 20px 0;
+  border-bottom: 1px solid #e6e8eb;
 }
+
+
 
 .page-title {
   margin: 0 0 8px 0;
   font-size: 24px;
   font-weight: 600;
-  color: #1f2937;
+  color: #1a1a1a;
+  line-height: 1.4;
 }
 
 .music-filter-tip {
@@ -1620,14 +1657,17 @@ onUnmounted(() => {
 }
 
 .page-meta {
-  margin: 6px 0 0 0;
-  color: #6b7280;
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .page-desc {
   margin: 0;
-  color: #6b7280;
+  color: #666;
   font-size: 14px;
+  line-height: 1.6;
 }
 
 .toolbar {
@@ -2084,5 +2124,23 @@ onUnmounted(() => {
 
 .music-tags {
   margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
+
+.music-tag {
+  margin: 0;
+  background-color: #e6f7ff;
+  border-color: #91d5ff;
+  color: #1890ff;
+}
+
+.music-tag:hover {
+  background-color: #bae7ff;
+  border-color: #69c0ff;
+}
+
+
 </style>

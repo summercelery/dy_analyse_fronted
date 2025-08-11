@@ -74,7 +74,7 @@
               </p>
               <div class="music-tags" v-if="musicInfo.tagList">
                 <el-tag 
-                  v-for="tag in musicInfo.tagList.split(',')" 
+                  v-for="tag in parseTags(musicInfo.tagList)" 
                   :key="tag" 
                   size="small"
                   class="music-tag"
@@ -379,6 +379,7 @@ import { useAuthStore } from '@/store/auth'
 import { musicApi } from '@/api/music'
 import { videoApi } from '@/api/video'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { parseTags } from '@/utils/tagUtils'
 
 const router = useRouter()
 const route = useRoute()
@@ -560,6 +561,8 @@ const formatDate = (dateString) => {
   if (!dateString) return '-'
   return new Date(dateString).toLocaleDateString('zh-CN')
 }
+
+
 
 const formatTimestamp = (timestamp) => {
   if (!timestamp) return '-'

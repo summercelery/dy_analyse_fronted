@@ -61,6 +61,14 @@
               clearable
               @input="handleSearch"
             />
+            <el-button 
+              type="primary" 
+              :icon="Search" 
+              @click="searchMusic"
+              :loading="loading"
+            >
+              搜索
+            </el-button>
           </div>
         </div>
 
@@ -112,14 +120,14 @@
                 <template #default="{ row }">
                   <div class="music-tags">
                     <el-tag
-                      v-for="tag in (row.tagList || '').split(',').filter(t => t.trim())"
+                      v-for="tag in parseTags(row.tagList)"
                       :key="tag"
                       size="small"
                       style="margin-right: 5px;"
                     >
-                      {{ tag.trim() }}
+                      {{ tag }}
                     </el-tag>
-                    <span v-if="!row.tagList || !row.tagList.trim()" class="na-text">N/A</span>
+                    <span v-if="!parseTags(row.tagList).length" class="na-text">N/A</span>
                   </div>
                 </template>
               </el-table-column>
@@ -200,11 +208,36 @@
           />
         </el-form-item>
         
-        <el-form-item label="标签" prop="tagList">
-          <el-input 
-            v-model="musicForm.tagList" 
-            placeholder="请输入标签，用逗号分隔（如：流行,抒情）"
-          />
+        <el-form-item label="搜索标签" prop="tags">
+          <div class="tag-input-container">
+            <el-input 
+              v-model="newTag"
+              placeholder="输入标签后按回车添加"
+              @keyup.enter="addTag"
+              class="tag-input"
+            >
+              <template #append>
+                <el-button @click="addTag" :disabled="!newTag.trim()">添加</el-button>
+              </template>
+            </el-input>
+            
+                       <div class="tag-list" v-if="musicForm.tags.length > 0">
+             <el-tag
+               v-for="(tag, index) in musicForm.tags"
+               :key="index"
+               closable
+               @close="removeTag(index)"
+               class="music-tag"
+             >
+               {{ tag }}
+             </el-tag>
+
+           </div>
+            
+                       <div class="tag-tips">
+             <small>提示：此标签用于抖音搜索,将自动监控标签下top50短视频</small>
+           </div>
+          </div>
         </el-form-item>
       </el-form>
       
@@ -224,6 +257,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { musicApi } from '@/api/music'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { parseTags, stringifyTags, validateTags, isTagDuplicate, isValidTag } from '@/utils/tagUtils'
 import {
   Plus,
   Refresh,
@@ -252,8 +286,10 @@ const musicForm = ref({
   title: '',
   author: '',
   album: '',
-  tagList: ''
+  tags: [] // 改为数组格式
 })
+
+const newTag = ref('') // 新增标签输入
 
 const formRules = {
   title: [
@@ -264,6 +300,20 @@ const formRules = {
   ],
   album: [
     { required: true, message: '请输入专辑名称', trigger: 'blur' }
+  ],
+  tags: [
+    { 
+      validator: (rule, value, callback) => {
+        if (value.length > 10) {
+          callback(new Error('标签数量不能超过10个'))
+        } else if (value.some(tag => tag.length > 20)) {
+          callback(new Error('单个标签长度不能超过20个字符'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
+    }
   ]
 }
 
@@ -272,10 +322,11 @@ const filteredMusicList = computed(() => {
   
   const keyword = searchKeyword.value.toLowerCase()
   return musicList.value.filter(item => {
+    const tags = parseTags(item.tagList)
     return (item.title || '').toLowerCase().includes(keyword) ||
            (item.author || '').toLowerCase().includes(keyword) ||
            (item.album || '').toLowerCase().includes(keyword) ||
-           (item.tagList || '').toLowerCase().includes(keyword)
+           tags.some(tag => tag.toLowerCase().includes(keyword))
   })
 })
 
@@ -301,14 +352,16 @@ const loadMusicList = async () => {
   }
 }
 
-const handleSearch = async () => {
+const searchMusic = async () => {
   if (!searchKeyword.value.trim()) {
+    await loadMusicList()
     return
   }
   
   loading.value = true
   try {
-    const response = await musicApi.searchMusic(searchKeyword.value.trim())
+    // 使用扩展搜索接口，支持标签搜索
+    const response = await musicApi.searchMusicExtended(searchKeyword.value.trim())
     if (response.code === 200) {
       musicList.value = response.data || []
     } else {
@@ -329,8 +382,9 @@ const resetForm = () => {
     title: '',
     author: '',
     album: '',
-    tagList: ''
+    tags: []
   }
+  newTag.value = '' // 重置新增标签输入
   if (formRef.value) {
     formRef.value.resetFields()
   }
@@ -343,7 +397,7 @@ const editMusic = (music) => {
     title: music.title || '',
     author: music.author || '',
     album: music.album || '',
-    tagList: music.tagList || ''
+    tags: parseTags(music.tagList) // 使用统一的标签解析函数
   }
   showAddDialog.value = true
 }
@@ -357,13 +411,26 @@ const handleSubmit = async () => {
     return
   }
   
+  // 标签验证
+  const tagValidation = validateTags(musicForm.value.tags)
+  if (!tagValidation.valid) {
+    ElMessage.warning(tagValidation.message)
+    return
+  }
+  
   submitLoading.value = true
   try {
+    // 准备提交数据，将标签数组转换为API需要的JSON字符串格式
+    const submitData = {
+      ...musicForm.value,
+      tagList: stringifyTags(musicForm.value.tags) // 使用工具函数转换为JSON数组字符串格式
+    }
+    
     let response
     if (editingMusic.value) {
-      response = await musicApi.updateMusic(musicForm.value)
+      response = await musicApi.updateMusic(submitData)
     } else {
-      response = await musicApi.addMusic(musicForm.value)
+      response = await musicApi.addMusic(submitData)
     }
     
     if (response.code === 200) {
@@ -432,6 +499,47 @@ const handleRowClick = (row) => {
 const viewMusicDetail = (music) => {
   router.push({ path: '/monitor', query: { musicId: music.id } })
 }
+
+const addTag = () => {
+  const tag = newTag.value.trim()
+  
+  // 验证标签是否为空
+  if (!tag) {
+    ElMessage.warning('请输入标签内容')
+    return
+  }
+  
+  // 验证标签是否有效
+  if (!isValidTag(tag)) {
+    ElMessage.warning('标签长度应在1-20个字符之间')
+    return
+  }
+  
+  // 验证标签数量
+  if (musicForm.value.tags.length >= 10) {
+    ElMessage.warning('标签数量不能超过10个')
+    return
+  }
+  
+  // 验证标签是否重复
+  if (isTagDuplicate(musicForm.value.tags, tag)) {
+    ElMessage.warning('标签已存在')
+    return
+  }
+  
+  // 添加标签
+  musicForm.value.tags.push(tag)
+  newTag.value = ''
+  ElMessage.success('标签添加成功')
+}
+
+const removeTag = (index) => {
+  musicForm.value.tags.splice(index, 1)
+}
+
+
+
+
 
 onMounted(() => {
   loadMusicList()
@@ -642,6 +750,50 @@ onMounted(() => {
   display: flex;
   gap: 8px;
 }
+
+/* 标签输入容器样式 */
+.tag-input-container {
+  width: 100%;
+}
+
+.tag-input {
+  margin-bottom: 10px;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.music-tag {
+  margin-right: 0;
+}
+
+.tag-tips {
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* 音乐标签样式 */
+.music-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.music-tag {
+  margin: 0;
+  font-size: 12px;
+  height: 24px;
+  line-height: 22px;
+  padding: 0 8px;
+}
+
+
 
 :deep(.el-card__header) {
   padding: 20px 24px;

@@ -42,6 +42,33 @@ export const musicApi = {
     })
   },
 
+  // 扩展搜索音乐（包括标签搜索）
+  searchMusicExtended(keyword) {
+    return request({
+      url: '/music/search/extended',
+      method: 'get',
+      params: { keyword }
+    })
+  },
+
+  // 根据标签搜索音乐
+  searchMusicByTag(tag) {
+    return request({
+      url: '/music/search/tag',
+      method: 'get',
+      params: { tag }
+    })
+  },
+
+  // 根据多个标签搜索音乐（包含任一标签）
+  searchMusicByTags(tags) {
+    return request({
+      url: '/music/search/tags',
+      method: 'get',
+      params: { tags }
+    })
+  },
+
   // 获取所有音乐列表
   getMusicList() {
     return request({
@@ -104,6 +131,43 @@ export const musicApi = {
   getMonitorVideosByMusicIdTypeAndStatus(musicId, type, status) {
     return request({
       url: `/monitor/list/music/${musicId}/type/${type}/status/${status}`,
+      method: 'get'
+    })
+  },
+
+  // ========== 音乐标签管理接口 ==========
+  
+  // 为音乐添加标签
+  addMusicTag(musicId, tag) {
+    return request({
+      url: `/music/${musicId}/tags`,
+      method: 'post',
+      params: { tag }
+    })
+  },
+
+  // 从音乐移除标签
+  removeMusicTag(musicId, tag) {
+    return request({
+      url: `/music/${musicId}/tags`,
+      method: 'delete',
+      params: { tag }
+    })
+  },
+
+  // 设置音乐标签列表
+  setMusicTags(musicId, tags) {
+    return request({
+      url: `/music/${musicId}/tags`,
+      method: 'put',
+      params: { tags }
+    })
+  },
+
+  // 获取音乐标签列表
+  getMusicTags(musicId) {
+    return request({
+      url: `/music/${musicId}/tags`,
       method: 'get'
     })
   }
