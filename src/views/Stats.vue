@@ -324,6 +324,29 @@ const formatNumber = (num) => {
   return num.toString()
 }
 
+// 解析时间字符串格式 "yyyy MM-dd HH:mm" 为时间戳
+const parseTimeString = (timeStr) => {
+  if (!timeStr) return Date.now()
+  
+  try {
+    // 处理 "yyyy MM-dd HH:mm" 格式
+    // 例如: "2024 12-25 14:30"
+    const parts = timeStr.split(' ')
+    if (parts.length === 3) {
+      const year = parts[0]
+      const dateTime = parts[1] + ' ' + parts[2]
+      const fullDateTime = `${year}-${dateTime}`
+      return new Date(fullDateTime).getTime()
+    }
+    
+    // 如果格式不匹配，尝试直接解析
+    return new Date(timeStr).getTime()
+  } catch (error) {
+    console.error('时间解析失败:', timeStr, error)
+    return Date.now()
+  }
+}
+
 // 切换统计项选中状态
 const toggleStat = (statType) => {
   selectedStats.value[statType] = !selectedStats.value[statType]
@@ -381,7 +404,7 @@ const renderChart = (data) => {
     series.push({
       name: '点赞数',
       type: 'line',
-      data: (data.diggCounts || []).map((value, index) => [new Date(data.timestamps[index]).getTime(), value]),
+      data: (data.diggCounts || []).map((value, index) => [parseTimeString(data.timestamps[index]), value]),
       smooth: true,
       symbol: 'circle',
       symbolSize: 6,
@@ -409,7 +432,7 @@ const renderChart = (data) => {
     series.push({
       name: '评论数',
       type: 'line',
-      data: (data.commentCounts || []).map((value, index) => [new Date(data.timestamps[index]).getTime(), value]),
+      data: (data.commentCounts || []).map((value, index) => [parseTimeString(data.timestamps[index]), value]),
       smooth: true,
       symbol: 'circle',
       symbolSize: 6,
@@ -427,7 +450,7 @@ const renderChart = (data) => {
     series.push({
       name: '收藏数',
       type: 'line',
-      data: (data.collectCounts || []).map((value, index) => [new Date(data.timestamps[index]).getTime(), value]),
+      data: (data.collectCounts || []).map((value, index) => [parseTimeString(data.timestamps[index]), value]),
       smooth: true,
       symbol: 'circle',
       symbolSize: 6,
@@ -445,7 +468,7 @@ const renderChart = (data) => {
     series.push({
       name: '分享数',
       type: 'line',
-      data: (data.shareCounts || []).map((value, index) => [new Date(data.timestamps[index]).getTime(), value]),
+      data: (data.shareCounts || []).map((value, index) => [parseTimeString(data.timestamps[index]), value]),
       smooth: true,
       symbol: 'circle',
       symbolSize: 6,
@@ -488,11 +511,12 @@ const renderChart = (data) => {
       axisLabel: {
         color: '#6b7280',
         formatter: (value) => {
-          // value 是时间戳，直接使用
+          // value 是时间戳，显示更详细的时间信息
           const date = new Date(value)
           const month = (date.getMonth() + 1).toString().padStart(2, '0')
           const day = date.getDate().toString().padStart(2, '0')
-          return `${month}-${day}`
+          const hours = date.getHours().toString().padStart(2, '0')
+          return `${month}-${day} ${hours}:00`
         }
       },
       splitLine: {
