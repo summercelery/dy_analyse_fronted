@@ -235,7 +235,7 @@
            </div>
             
                        <div class="tag-tips">
-             <small>提示：此标签用于抖音搜索,将自动监控标签下top50短视频</small>
+             <small>提示：此标签用于抖音搜索,将自动监控标签下top25短视频</small>
            </div>
           </div>
         </el-form-item>

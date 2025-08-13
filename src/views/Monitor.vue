@@ -86,16 +86,30 @@
           </div>
           
           <div 
-            class="stat-card monitoring"
-            :class="{ 'is-active': currentFilter === 'monitoring' }"
-            @click="filterVideos('monitoring')"
+            class="stat-card manual"
+            :class="{ 'is-active': currentFilter === 'manual' }"
+            @click="filterVideos('manual')"
           >
             <div class="stat-icon">
               <el-icon size="20"><CircleCheck /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ activeMonitors.length }}</div>
-              <div class="stat-label">监控中</div>
+              <div class="stat-value">{{ manualMonitors.length }}</div>
+              <div class="stat-label">手动添加</div>
+            </div>
+          </div>
+          
+          <div 
+            class="stat-card auto"
+            :class="{ 'is-active': currentFilter === 'auto' }"
+            @click="filterVideos('auto')"
+          >
+            <div class="stat-icon">
+              <el-icon size="20"><Cpu /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ autoMonitors.length }}</div>
+              <div class="stat-label">自动添加</div>
             </div>
           </div>
           
@@ -110,20 +124,6 @@
             <div class="stat-info">
               <div class="stat-value">{{ abnormalMonitors.length }}</div>
               <div class="stat-label">异常监控</div>
-            </div>
-          </div>
-          
-          <div 
-            class="stat-card auto"
-            :class="{ 'is-active': currentFilter === 'auto' }"
-            @click="filterVideos('auto')"
-          >
-            <div class="stat-icon">
-              <el-icon size="20"><MagicStick /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ autoMonitors.length }}</div>
-              <div class="stat-label">自动添加</div>
             </div>
           </div>
         </div>
@@ -150,6 +150,38 @@
               style="width: 300px;"
               clearable
             />
+          </div>
+        </div>
+
+        <!-- 搜索标签选择区域 -->
+        <div v-if="currentFilter === 'auto' && allSearchTags.length > 0" class="tag-filter-section">
+          <div class="tag-filter-row">
+            <span class="tag-filter-title">搜索标签筛选：</span>
+            <div class="tag-filter-content">
+              <el-tag
+                v-for="tag in allSearchTags"
+                :key="tag"
+                size="large"
+                :type="selectedSearchTags.includes(tag) ? 'primary' : 'info'"
+                :effect="selectedSearchTags.includes(tag) ? 'dark' : 'light'"
+                class="filter-tag"
+                @click="toggleSearchTag(tag)"
+              >
+                {{ tag }}
+                <span v-if="selectedSearchTags.includes(tag)" class="tag-count">
+                  ({{ getTagCount(tag) }})
+                </span>
+              </el-tag>
+            </div>
+            <el-button 
+              v-if="selectedSearchTags.length > 0"
+              type="text" 
+              size="small" 
+              @click="clearSelectedTags"
+              class="clear-tags-btn"
+            >
+              清除所有 ({{ selectedSearchTags.length }})
+            </el-button>
           </div>
         </div>
 
@@ -248,15 +280,6 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="关联音乐" width="130">
-                <template #default="{ row }">
-                  <div v-if="row.musicInfo" class="music-info">
-                    <div class="music-title">{{ row.musicInfo.title }}</div>
-                    <div class="music-author">{{ row.musicInfo.author }}</div>
-                  </div>
-                  <span v-else class="na-text">未关联音乐</span>
-                </template>
-              </el-table-column>
               <el-table-column label="话题标签" width="200">
                 <template #default="{ row }">
                   <div v-if="getTopicsArray(row).length > 0" class="hashtag-list">
@@ -280,6 +303,37 @@
                     </el-tooltip>
                   </div>
                   <span v-else class="na-text">无话题标签</span>
+                </template>
+              </el-table-column>
+              
+              <el-table-column 
+                label="搜索标签" 
+                width="150"
+                v-if="currentFilter === 'auto'"
+              >
+                <template #default="{ row }">
+                  <div v-if="getSearchTags(row).length > 0" class="search-tag-list">
+                    <el-tag
+                      v-for="tag in getSearchTags(row).slice(0, 3)"
+                      :key="tag"
+                      size="small"
+                      type="success"
+                      class="search-tag"
+                      @click="selectSearchTag(tag)"
+                    >
+                      {{ tag }}
+                    </el-tag>
+                    <el-tooltip 
+                      v-if="getSearchTags(row).length > 3"
+                      :content="getSearchTags(row).slice(3).join('、')"
+                      placement="top"
+                    >
+                      <el-tag size="small" type="success" class="search-tag-more">
+                        +{{ getSearchTags(row).length - 3 }}
+                      </el-tag>
+                    </el-tooltip>
+                  </div>
+                  <span v-else class="na-text">无搜索标签</span>
                 </template>
               </el-table-column>
               
@@ -307,6 +361,14 @@
                 <template #default="{ row }">
                   <div class="publish-time">
                     {{ formatPublishTime(row.monitorVideo?.videoPublishTime) }}
+                  </div>
+                </template>
+              </el-table-column>
+              
+              <el-table-column label="创建时间" width="160" align="center">
+                <template #default="{ row }">
+                  <div class="create-time">
+                    {{ formatDate(row.monitorVideo?.createTime) }}
                   </div>
                 </template>
               </el-table-column>
@@ -632,7 +694,8 @@ import {
   Collection,
   Close,
   Warning,
-  MagicStick
+  MagicStick,
+  Cpu
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -646,6 +709,8 @@ const searchKeyword = ref('')
 const selectedRows = ref([])
 const currentMusicId = ref(null) // 当前过滤的音乐ID
 const currentMusicInfo = ref(null)
+const selectedSearchTags = ref([])
+const allSearchTags = ref([])
 
 const showAddDialog = ref(false)
 const showBatchDialog = ref(false)
@@ -689,8 +754,8 @@ const filteredMonitors = computed(() => {
     case 'all':
       filtered = monitorList.value
       break
-    case 'monitoring':
-      filtered = monitorList.value.filter(item => item.monitorVideo?.status === 1)
+    case 'manual':
+      filtered = monitorList.value.filter(item => item.monitorVideo?.type === 1)
       break
     case 'error':
       filtered = monitorList.value.filter(item => {
@@ -710,6 +775,15 @@ const filteredMonitors = computed(() => {
     filtered = filtered.filter(item => {
       const itemMusicId = item.userMonitor?.musicId || item.monitorVideo?.musicId
       return itemMusicId === currentMusicId.value
+    })
+  }
+  
+  // 如果选择了搜索标签，进一步过滤
+  if (selectedSearchTags.value.length > 0 && currentFilter.value === 'auto') {
+    filtered = filtered.filter(item => {
+      const tags = getSearchTags(item)
+      // 只要包含任一个选中的标签即可显示
+      return selectedSearchTags.value.some(selectedTag => tags.includes(selectedTag))
     })
   }
   
@@ -759,6 +833,11 @@ const allMonitors = computed(() => {
   return monitorList.value
 })
 
+const manualMonitors = computed(() => {
+  // type=1是手动添加
+  return monitorList.value.filter(item => item.monitorVideo?.type === 1)
+})
+
 const autoMonitors = computed(() => {
   // type=0是自动添加
   return monitorList.value.filter(item => item.monitorVideo?.type === 0)
@@ -766,12 +845,98 @@ const autoMonitors = computed(() => {
 
 const currentFilter = ref('all')
 
+// 获取搜索标签数组
+const getSearchTags = (row) => {
+  // 从 MonitorVideo 的 tag 字段获取标签
+  const tag = row.monitorVideo?.tag
+  if (!tag) return []
+  
+  if (Array.isArray(tag)) {
+    return tag
+  }
+  
+  // 如果是字符串，尝试解析JSON或按逗号分割
+  if (typeof tag === 'string') {
+    try {
+      const parsed = JSON.parse(tag)
+      if (Array.isArray(parsed)) {
+        return parsed
+      }
+    } catch (e) {
+      // 如果不是JSON，尝试按逗号分割
+      return tag.split(',').map(t => t.trim()).filter(t => t)
+    }
+  }
+  
+  return []
+}
+
+// 切换搜索标签选择
+const toggleSearchTag = (tag) => {
+  const index = selectedSearchTags.value.indexOf(tag)
+  if (index > -1) {
+    selectedSearchTags.value.splice(index, 1)
+  } else {
+    selectedSearchTags.value.push(tag)
+  }
+  
+  const count = filteredMonitors.value.length
+  if (selectedSearchTags.value.length > 0) {
+    ElMessage.success(`已选择 ${selectedSearchTags.value.length} 个标签，筛选出 ${count} 个视频`)
+  } else {
+    ElMessage.success(`已清除所有标签筛选`)
+  }
+}
+
+// 选择搜索标签（点击表格中的标签）
+const selectSearchTag = (tag) => {
+  if (!selectedSearchTags.value.includes(tag)) {
+    selectedSearchTags.value.push(tag)
+    const count = filteredMonitors.value.length
+    ElMessage.success(`已添加标签 "${tag}"，筛选出 ${count} 个视频`)
+  }
+}
+
+// 清除所有选中的标签
+const clearSelectedTags = () => {
+  selectedSearchTags.value = []
+  ElMessage.success('已清除所有标签筛选')
+}
+
+// 获取指定标签的视频数量
+const getTagCount = (tag) => {
+  return monitorList.value.filter(item => {
+    if (item.monitorVideo?.type !== 0) return false
+    const tags = getSearchTags(item)
+    return tags.includes(tag)
+  }).length
+}
+
+// 更新所有搜索标签列表
+const updateAllSearchTags = () => {
+  const tagSet = new Set()
+  
+  monitorList.value.forEach(item => {
+    if (item.monitorVideo?.type === 0) { // 只从自动添加的视频中获取标签
+      const tags = getSearchTags(item)
+      tags.forEach(tag => tagSet.add(tag))
+    }
+  })
+  
+  allSearchTags.value = Array.from(tagSet).sort()
+}
+
 const filterVideos = (filterType) => {
   currentFilter.value = filterType
   
+  // 切换到非自动添加时清除搜索标签
+  if (filterType !== 'auto') {
+    selectedSearchTags.value = []
+  }
+  
   const filterMessages = {
     'all': '已显示所有监控视频',
-    'monitoring': '已过滤显示监控中的视频',
+    'manual': '已过滤显示手动添加的视频',
     'error': '已过滤显示异常监控的视频',
     'auto': '已过滤显示自动添加的视频'
   }
@@ -984,6 +1149,9 @@ const loadMonitorVideos = async () => {
           
           console.log('Monitor页面: 合并后的数据:', mergedData)
           monitorList.value = mergedData
+          
+          // 更新搜索标签列表
+          updateAllSearchTags()
         } else {
           // 如果获取详细信息失败，尝试单独获取音乐信息、视频信息、播主信息和统计数据
           const enhancedData = await Promise.all(data.map(async item => {
@@ -1051,10 +1219,16 @@ const loadMonitorVideos = async () => {
           }))
           
           monitorList.value = enhancedData
+          
+          // 更新搜索标签列表
+          updateAllSearchTags()
         }
       } catch (detailError) {
         console.warn('Monitor页面: 获取详细信息失败，使用基础数据:', detailError)
         monitorList.value = data
+        
+        // 更新搜索标签列表
+        updateAllSearchTags()
       }
     } else {
       ElMessage.error(response.message || '加载监控列表失败')
@@ -1723,10 +1897,11 @@ onUnmounted(() => {
   color: #fff;
 }
 
-.stat-card.monitoring .stat-icon {
+.stat-card.manual .stat-icon {
   background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   color: #fff;
 }
+
 
 .stat-card.inactive .stat-icon {
   background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
@@ -1739,7 +1914,7 @@ onUnmounted(() => {
 }
 
 .stat-card.auto .stat-icon {
-  background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%);
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
   color: #fff;
 }
 
@@ -1943,6 +2118,112 @@ onUnmounted(() => {
   font-size: 12px;
   color: #374151;
   line-height: 1.4;
+}
+
+.create-time {
+  font-size: 12px;
+  color: #374151;
+  line-height: 1.4;
+}
+
+/* 搜索标签样式 */
+.search-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.search-tag {
+  border: none;
+  background: #f0f9ff;
+  color: #059669;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.search-tag:hover {
+  background: #dcfce7;
+  color: #047857;
+  transform: scale(1.05);
+}
+
+.search-tag-more {
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* 标签筛选区域样式 */
+.tag-filter-section {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e6e8eb;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+
+.tag-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.tag-filter-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.clear-tags-btn {
+  color: #f56565;
+  font-size: 14px;
+  padding: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.clear-tags-btn:hover {
+  color: #e53e3e;
+}
+
+.tag-filter-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-tag {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  user-select: none;
+}
+
+.filter-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tag-count {
+  font-size: 12px;
+  margin-left: 4px;
+  opacity: 0.8;
 }
 
 .table-actions {
