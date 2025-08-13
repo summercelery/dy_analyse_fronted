@@ -337,6 +337,36 @@
                 </template>
               </el-table-column>
               
+              <el-table-column 
+                label="搜索类型" 
+                width="150"
+                v-if="currentFilter === 'auto'"
+              >
+                <template #default="{ row }">
+                  <div v-if="getSearchChannels(row).length > 0" class="search-channel-list">
+                    <el-tag
+                      v-for="channel in getSearchChannels(row).slice(0, 3)"
+                      :key="channel"
+                      size="small"
+                      type="warning"
+                      class="search-channel"
+                    >
+                      {{ channel }}
+                    </el-tag>
+                    <el-tooltip 
+                      v-if="getSearchChannels(row).length > 3"
+                      :content="getSearchChannels(row).slice(3).join('、')"
+                      placement="top"
+                    >
+                      <el-tag size="small" type="warning" class="search-channel-more">
+                        +{{ getSearchChannels(row).length - 3 }}
+                      </el-tag>
+                    </el-tooltip>
+                  </div>
+                  <span v-else class="na-text">无搜索类型</span>
+                </template>
+              </el-table-column>
+              
               <el-table-column label="最新数据" width="140">
                 <template #default="{ row }">
                   <div v-if="row.latestStats" class="stats-preview">
@@ -865,6 +895,32 @@ const getSearchTags = (row) => {
     } catch (e) {
       // 如果不是JSON，尝试按逗号分割
       return tag.split(',').map(t => t.trim()).filter(t => t)
+    }
+  }
+  
+  return []
+}
+
+// 获取搜索类型数组
+const getSearchChannels = (row) => {
+  // 从 MonitorVideo 的 channel 字段获取搜索类型
+  const channel = row.monitorVideo?.channel
+  if (!channel) return []
+  
+  if (Array.isArray(channel)) {
+    return channel
+  }
+  
+  // 如果是字符串，尝试解析JSON或按逗号分割
+  if (typeof channel === 'string') {
+    try {
+      const parsed = JSON.parse(channel)
+      if (Array.isArray(parsed)) {
+        return parsed
+      }
+    } catch (e) {
+      // 如果不是JSON，尝试按逗号分割
+      return channel.split(',').map(c => c.trim()).filter(c => c)
     }
   }
   
@@ -2152,6 +2208,40 @@ onUnmounted(() => {
 }
 
 .search-tag-more {
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* 搜索类型样式 */
+.search-channel-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.search-channel {
+  border: none;
+  background: #fefce8;
+  color: #ca8a04;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.search-channel:hover {
+  background: #fef3c7;
+  color: #a16207;
+  transform: scale(1.05);
+}
+
+.search-channel-more {
   border: none;
   background: #f3f4f6;
   color: #6b7280;
