@@ -153,34 +153,56 @@
           </div>
         </div>
 
-        <!-- 搜索标签选择区域 -->
-        <div v-if="currentFilter === 'auto' && allSearchTags.length > 0" class="tag-filter-section">
+        <!-- 标签筛选区域 -->
+        <div v-if="currentFilter === 'auto' && (allSearchTags.length > 0 || allSearchChannels.length > 0)" class="tag-filter-section">
           <div class="tag-filter-row">
-            <span class="tag-filter-title">搜索标签筛选：</span>
             <div class="tag-filter-content">
-              <el-tag
-                v-for="tag in allSearchTags"
-                :key="tag"
-                size="large"
-                :type="selectedSearchTags.includes(tag) ? 'primary' : 'info'"
-                :effect="selectedSearchTags.includes(tag) ? 'dark' : 'light'"
-                class="filter-tag"
-                @click="toggleSearchTag(tag)"
-              >
-                {{ tag }}
-                <span v-if="selectedSearchTags.includes(tag)" class="tag-count">
-                  ({{ getTagCount(tag) }})
-                </span>
-              </el-tag>
+              <!-- 搜索标签 -->
+              <div v-if="allSearchTags.length > 0" class="filter-group">
+                <span class="filter-group-title">搜索标签：</span>
+                <el-tag
+                  v-for="tag in allSearchTags"
+                  :key="`tag-${tag}`"
+                  size="large"
+                  :type="selectedSearchTags.includes(tag) ? 'primary' : 'info'"
+                  :effect="selectedSearchTags.includes(tag) ? 'dark' : 'light'"
+                  class="filter-tag"
+                  @click="toggleSearchTag(tag)"
+                >
+                  {{ tag }}
+                  <span v-if="selectedSearchTags.includes(tag)" class="tag-count">
+                    ({{ getTagCount(tag) }})
+                  </span>
+                </el-tag>
+              </div>
+              
+              <!-- 搜索类型 -->
+              <div v-if="allSearchChannels.length > 0" class="filter-group">
+                <span class="filter-group-title">搜索类型：</span>
+                <el-tag
+                  v-for="channel in allSearchChannels"
+                  :key="`channel-${channel}`"
+                  size="large"
+                  :type="selectedSearchChannels.includes(channel) ? 'warning' : 'info'"
+                  :effect="selectedSearchChannels.includes(channel) ? 'dark' : 'light'"
+                  class="filter-tag"
+                  @click="toggleSearchChannel(channel)"
+                >
+                  {{ channel }}
+                  <span v-if="selectedSearchChannels.includes(channel)" class="tag-count">
+                    ({{ getChannelCount(channel) }})
+                  </span>
+                </el-tag>
+              </div>
             </div>
             <el-button 
-              v-if="selectedSearchTags.length > 0"
+              v-if="selectedSearchTags.length > 0 || selectedSearchChannels.length > 0"
               type="text" 
               size="small" 
               @click="clearSelectedTags"
               class="clear-tags-btn"
             >
-              清除所有 ({{ selectedSearchTags.length }})
+              清除所有 ({{ selectedSearchTags.length + selectedSearchChannels.length }})
             </el-button>
           </div>
         </div>
@@ -350,6 +372,7 @@
                       size="small"
                       type="warning"
                       class="search-channel"
+                      @click="selectSearchChannel(channel)"
                     >
                       {{ channel }}
                     </el-tag>
@@ -741,6 +764,8 @@ const currentMusicId = ref(null) // 当前过滤的音乐ID
 const currentMusicInfo = ref(null)
 const selectedSearchTags = ref([])
 const allSearchTags = ref([])
+const selectedSearchChannels = ref([])
+const allSearchChannels = ref([])
 
 const showAddDialog = ref(false)
 const showBatchDialog = ref(false)
@@ -808,12 +833,26 @@ const filteredMonitors = computed(() => {
     })
   }
   
-  // 如果选择了搜索标签，进一步过滤
-  if (selectedSearchTags.value.length > 0 && currentFilter.value === 'auto') {
+  // 如果选择了搜索标签或搜索类型，进一步过滤
+  if ((selectedSearchTags.value.length > 0 || selectedSearchChannels.value.length > 0) && currentFilter.value === 'auto') {
     filtered = filtered.filter(item => {
-      const tags = getSearchTags(item)
-      // 只要包含任一个选中的标签即可显示
-      return selectedSearchTags.value.some(selectedTag => tags.includes(selectedTag))
+      let matchTag = true
+      let matchChannel = true
+      
+      // 如果选择了搜索标签，检查是否匹配（且关系，必须包含所有选中的标签）
+      if (selectedSearchTags.value.length > 0) {
+        const tags = getSearchTags(item)
+        matchTag = selectedSearchTags.value.every(selectedTag => tags.includes(selectedTag))
+      }
+      
+      // 如果选择了搜索类型，检查是否匹配（且关系，必须包含所有选中的类型）
+      if (selectedSearchChannels.value.length > 0) {
+        const channels = getSearchChannels(item)
+        matchChannel = selectedSearchChannels.value.every(selectedChannel => channels.includes(selectedChannel))
+      }
+      
+      // 必须同时满足标签和类型的筛选条件（如果有的话）
+      return matchTag && matchChannel
     })
   }
   
@@ -937,10 +976,29 @@ const toggleSearchTag = (tag) => {
   }
   
   const count = filteredMonitors.value.length
-  if (selectedSearchTags.value.length > 0) {
-    ElMessage.success(`已选择 ${selectedSearchTags.value.length} 个标签，筛选出 ${count} 个视频`)
+  const totalSelected = selectedSearchTags.value.length + selectedSearchChannels.value.length
+  if (totalSelected > 0) {
+    ElMessage.success(`已选择 ${totalSelected} 个筛选条件，筛选出 ${count} 个视频`)
   } else {
-    ElMessage.success(`已清除所有标签筛选`)
+    ElMessage.success(`已清除所有筛选条件`)
+  }
+}
+
+// 切换搜索类型选择
+const toggleSearchChannel = (channel) => {
+  const index = selectedSearchChannels.value.indexOf(channel)
+  if (index > -1) {
+    selectedSearchChannels.value.splice(index, 1)
+  } else {
+    selectedSearchChannels.value.push(channel)
+  }
+  
+  const count = filteredMonitors.value.length
+  const totalSelected = selectedSearchTags.value.length + selectedSearchChannels.value.length
+  if (totalSelected > 0) {
+    ElMessage.success(`已选择 ${totalSelected} 个筛选条件，筛选出 ${count} 个视频`)
+  } else {
+    ElMessage.success(`已清除所有筛选条件`)
   }
 }
 
@@ -953,10 +1011,20 @@ const selectSearchTag = (tag) => {
   }
 }
 
+// 选择搜索类型（点击表格中的类型）
+const selectSearchChannel = (channel) => {
+  if (!selectedSearchChannels.value.includes(channel)) {
+    selectedSearchChannels.value.push(channel)
+    const count = filteredMonitors.value.length
+    ElMessage.success(`已添加搜索类型 "${channel}"，筛选出 ${count} 个视频`)
+  }
+}
+
 // 清除所有选中的标签
 const clearSelectedTags = () => {
   selectedSearchTags.value = []
-  ElMessage.success('已清除所有标签筛选')
+  selectedSearchChannels.value = []
+  ElMessage.success('已清除所有筛选条件')
 }
 
 // 获取指定标签的视频数量
@@ -968,26 +1036,41 @@ const getTagCount = (tag) => {
   }).length
 }
 
-// 更新所有搜索标签列表
+// 获取指定搜索类型的视频数量
+const getChannelCount = (channel) => {
+  return monitorList.value.filter(item => {
+    if (item.monitorVideo?.type !== 0) return false
+    const channels = getSearchChannels(item)
+    return channels.includes(channel)
+  }).length
+}
+
+// 更新所有搜索标签和搜索类型列表
 const updateAllSearchTags = () => {
   const tagSet = new Set()
+  const channelSet = new Set()
   
   monitorList.value.forEach(item => {
-    if (item.monitorVideo?.type === 0) { // 只从自动添加的视频中获取标签
+    if (item.monitorVideo?.type === 0) { // 只从自动添加的视频中获取标签和类型
       const tags = getSearchTags(item)
       tags.forEach(tag => tagSet.add(tag))
+      
+      const channels = getSearchChannels(item)
+      channels.forEach(channel => channelSet.add(channel))
     }
   })
   
   allSearchTags.value = Array.from(tagSet).sort()
+  allSearchChannels.value = Array.from(channelSet).sort()
 }
 
 const filterVideos = (filterType) => {
   currentFilter.value = filterType
   
-  // 切换到非自动添加时清除搜索标签
+  // 切换到非自动添加时清除搜索标签和搜索类型
   if (filterType !== 'auto') {
     selectedSearchTags.value = []
+    selectedSearchChannels.value = []
   }
   
   const filterMessages = {
@@ -2232,6 +2315,7 @@ onUnmounted(() => {
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 4px;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
@@ -2289,11 +2373,26 @@ onUnmounted(() => {
 
 .tag-filter-content {
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-group {
+  display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
-  flex: 1;
-  min-width: 0;
+}
+
+.filter-group-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: 8px;
 }
 
 .filter-tag {
