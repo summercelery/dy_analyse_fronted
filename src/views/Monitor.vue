@@ -143,6 +143,25 @@
             </el-button>
           </div>
           <div class="toolbar-right">
+            <el-select
+              v-model="sortField"
+              placeholder="排序方式"
+              style="width: 140px; margin-right: 12px;"
+              @change="handleSortChange"
+            >
+              <el-option label="按点赞数" value="diggCount" />
+              <el-option label="按发布时间" value="publishTime" />
+              <el-option label="按创建时间" value="createTime" />
+            </el-select>
+            <el-select
+              v-model="sortOrder"
+              placeholder="排序顺序"
+              style="width: 100px; margin-right: 12px;"
+              @change="handleSortChange"
+            >
+              <el-option label="降序" value="desc" />
+              <el-option label="升序" value="asc" />
+            </el-select>
             <el-input
               v-model="searchKeyword"
               placeholder="搜索视频ID、链接或播主名称"
@@ -766,6 +785,9 @@ const selectedSearchTags = ref([])
 const allSearchTags = ref([])
 const selectedSearchChannels = ref([])
 const allSearchChannels = ref([])
+const sortField = ref('diggCount') // 排序字段：diggCount(点赞数), publishTime(发布时间), createTime(创建时间)
+const sortOrder = ref('desc') // 排序顺序：desc(降序), asc(升序)
+
 
 const showAddDialog = ref(false)
 const showBatchDialog = ref(false)
@@ -871,13 +893,9 @@ const filteredMonitors = computed(() => {
              authorId.toLowerCase().includes(keyword)
     })
   }
-  // 根据点赞数从大到小排序（无数据按0处理），不修改原数组
-  const sorted = filtered.slice().sort((a, b) => {
-    const aLikes = a?.latestStats?.diggCount || 0
-    const bLikes = b?.latestStats?.diggCount || 0
-    return bLikes - aLikes
-  })
-  return sorted
+  
+  // 应用排序
+  return sortMonitors(filtered)
 })
 
 const activeMonitors = computed(() => {
@@ -913,6 +931,42 @@ const autoMonitors = computed(() => {
 })
 
 const currentFilter = ref('all')
+
+// 处理排序变化
+const handleSortChange = () => {
+  // 排序变化时不需要额外操作，computed会自动重新计算
+}
+
+// 排序函数
+const sortMonitors = (monitors) => {
+  return monitors.slice().sort((a, b) => {
+    let valueA, valueB
+    
+    switch (sortField.value) {
+      case 'diggCount':
+        valueA = a?.latestStats?.diggCount || 0
+        valueB = b?.latestStats?.diggCount || 0
+        break
+      case 'publishTime':
+        valueA = a?.monitorVideo?.videoPublishTime || 0
+        valueB = b?.monitorVideo?.videoPublishTime || 0
+        break
+      case 'createTime':
+        valueA = new Date(a?.monitorVideo?.createTime || 0).getTime()
+        valueB = new Date(b?.monitorVideo?.createTime || 0).getTime()
+        break
+      default:
+        valueA = a?.latestStats?.diggCount || 0
+        valueB = b?.latestStats?.diggCount || 0
+    }
+    
+    if (sortOrder.value === 'asc') {
+      return valueA - valueB
+    } else {
+      return valueB - valueA
+    }
+  })
+}
 
 // 获取搜索标签数组
 const getSearchTags = (row) => {
@@ -1847,6 +1901,7 @@ const handleRowClick = (row) => {
 
 
 
+
 onMounted(() => {
   // 检查是否有音乐ID查询参数
   if (route.query.musicId) {
@@ -2444,6 +2499,7 @@ onUnmounted(() => {
 :deep(.el-table .el-table__cell) {
   border-bottom: 1px solid #f1f3f4;
 }
+
 
 /* 修复状态标签的小黑点问题 */
 .status-tag {
