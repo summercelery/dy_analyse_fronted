@@ -173,7 +173,7 @@
         </div>
 
         <!-- 标签筛选区域 -->
-        <div v-if="currentFilter === 'auto' && (allSearchTags.length > 0 || allSearchChannels.length > 0)" class="tag-filter-section">
+        <div v-if="allSearchTags.length > 0 || allSearchChannels.length > 0" class="tag-filter-section">
           <div class="tag-filter-row">
             <div class="tag-filter-content">
               <!-- 搜索标签 -->
@@ -350,7 +350,6 @@
               <el-table-column 
                 label="搜索标签" 
                 width="150"
-                v-if="currentFilter === 'auto'"
               >
                 <template #default="{ row }">
                   <div v-if="getSearchTags(row).length > 0" class="search-tag-list">
@@ -381,7 +380,6 @@
               <el-table-column 
                 label="搜索类型" 
                 width="150"
-                v-if="currentFilter === 'auto'"
               >
                 <template #default="{ row }">
                   <div v-if="getSearchChannels(row).length > 0" class="search-channel-list">
@@ -856,7 +854,7 @@ const filteredMonitors = computed(() => {
   }
   
   // 如果选择了搜索标签或搜索类型，进一步过滤
-  if ((selectedSearchTags.value.length > 0 || selectedSearchChannels.value.length > 0) && currentFilter.value === 'auto') {
+  if (selectedSearchTags.value.length > 0 || selectedSearchChannels.value.length > 0) {
     filtered = filtered.filter(item => {
       let matchTag = true
       let matchChannel = true
@@ -1084,7 +1082,6 @@ const clearSelectedTags = () => {
 // 获取指定标签的视频数量
 const getTagCount = (tag) => {
   return monitorList.value.filter(item => {
-    if (item.monitorVideo?.type !== 0) return false
     const tags = getSearchTags(item)
     return tags.includes(tag)
   }).length
@@ -1093,7 +1090,6 @@ const getTagCount = (tag) => {
 // 获取指定搜索类型的视频数量
 const getChannelCount = (channel) => {
   return monitorList.value.filter(item => {
-    if (item.monitorVideo?.type !== 0) return false
     const channels = getSearchChannels(item)
     return channels.includes(channel)
   }).length
@@ -1105,13 +1101,11 @@ const updateAllSearchTags = () => {
   const channelSet = new Set()
   
   monitorList.value.forEach(item => {
-    if (item.monitorVideo?.type === 0) { // 只从自动添加的视频中获取标签和类型
-      const tags = getSearchTags(item)
-      tags.forEach(tag => tagSet.add(tag))
-      
-      const channels = getSearchChannels(item)
-      channels.forEach(channel => channelSet.add(channel))
-    }
+    const tags = getSearchTags(item)
+    tags.forEach(tag => tagSet.add(tag))
+    
+    const channels = getSearchChannels(item)
+    channels.forEach(channel => channelSet.add(channel))
   })
   
   allSearchTags.value = Array.from(tagSet).sort()
@@ -1120,12 +1114,6 @@ const updateAllSearchTags = () => {
 
 const filterVideos = (filterType) => {
   currentFilter.value = filterType
-  
-  // 切换到非自动添加时清除搜索标签和搜索类型
-  if (filterType !== 'auto') {
-    selectedSearchTags.value = []
-    selectedSearchChannels.value = []
-  }
   
   const filterMessages = {
     'all': '已显示所有监控视频',
