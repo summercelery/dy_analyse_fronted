@@ -595,7 +595,7 @@ onMounted(() => {
 }
 
 .sidebar {
-  width: 180px;
+  width: 140px;
   background: #fff;
   border-right: 1px solid #e6e8eb;
   padding: 16px 0;
@@ -606,8 +606,13 @@ onMounted(() => {
 }
 
 .menu-item {
-  margin: 4px 16px;
+  margin: 4px 8px;
   border-radius: 8px;
+  justify-content: center;
+}
+
+.menu-item .el-menu-item__content {
+  justify-content: center;
 }
 
 .content {

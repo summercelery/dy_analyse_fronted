@@ -2,10 +2,26 @@ import request from '@/utils/request'
 
 export const monitorApi = {
   // 获取监控视频列表
-  getMonitorList() {
+  getMonitorList(params = {}) {
     return request({
       url: '/monitor/list',
-      method: 'get'
+      method: 'get',
+      params,
+      paramsSerializer: {
+        serialize: (params) => {
+          const searchParams = new URLSearchParams()
+          Object.keys(params).forEach(key => {
+            const value = params[key]
+            if (Array.isArray(value)) {
+              // 对于数组参数，使用JSON格式并进行URL编码
+              searchParams.append(key, JSON.stringify(value))
+            } else if (value !== undefined && value !== null) {
+              searchParams.append(key, value)
+            }
+          })
+          return searchParams.toString()
+        }
+      }
     })
   },
 
@@ -80,6 +96,39 @@ export const monitorApi = {
     return request({
       url: `/import-task/list?limit=${limit}`,
       method: 'get'
+    })
+  },
+
+  // 获取监控统计概览
+  getMonitorStatistics(musicId) {
+    return request({
+      url: '/monitor/statistics',
+      method: 'get',
+      params: {
+        musicId
+      }
+    })
+  },
+
+  // 获取搜索标签统计
+  getMonitorTags(musicId) {
+    return request({
+      url: '/monitor/tags',
+      method: 'get',
+      params: {
+        musicId
+      }
+    })
+  },
+
+  // 获取搜索频道统计
+  getMonitorChannels(musicId) {
+    return request({
+      url: '/monitor/channels',
+      method: 'get',
+      params: {
+        musicId
+      }
     })
   }
 }

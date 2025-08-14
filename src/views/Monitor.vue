@@ -80,7 +80,7 @@
               <el-icon size="20"><VideoCamera /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ allMonitors.length }}</div>
+              <div class="stat-value">{{ statistics.totalCount }}</div>
               <div class="stat-label">监控视频总数</div>
             </div>
           </div>
@@ -94,7 +94,7 @@
               <el-icon size="20"><CircleCheck /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ manualMonitors.length }}</div>
+              <div class="stat-value">{{ statistics.manualCount }}</div>
               <div class="stat-label">手动添加</div>
             </div>
           </div>
@@ -108,7 +108,7 @@
               <el-icon size="20"><Cpu /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ autoMonitors.length }}</div>
+              <div class="stat-value">{{ statistics.autoCount }}</div>
               <div class="stat-label">自动添加</div>
             </div>
           </div>
@@ -122,7 +122,7 @@
               <el-icon size="20"><Warning /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">{{ abnormalMonitors.length }}</div>
+              <div class="stat-value">{{ statistics.abnormalCount }}</div>
               <div class="stat-label">异常监控</div>
             </div>
           </div>
@@ -168,7 +168,10 @@
               :prefix-icon="Search"
               style="width: 300px;"
               clearable
+              @keyup.enter="handleSearch"
+              @clear="handleSearch"
             />
+            <el-button @click="handleSearch" :icon="Search" style="margin-left: 8px;">搜索</el-button>
           </div>
         </div>
 
@@ -181,16 +184,16 @@
                 <span class="filter-group-title">搜索标签：</span>
                 <el-tag
                   v-for="tag in allSearchTags"
-                  :key="`tag-${tag}`"
+                  :key="`tag-${tag.tagName}`"
                   size="large"
-                  :type="selectedSearchTags.includes(tag) ? 'primary' : 'info'"
-                  :effect="selectedSearchTags.includes(tag) ? 'dark' : 'light'"
+                  :type="selectedSearchTags.includes(tag.tagName) ? 'primary' : 'info'"
+                  :effect="selectedSearchTags.includes(tag.tagName) ? 'dark' : 'light'"
                   class="filter-tag"
-                  @click="toggleSearchTag(tag)"
+                  @click="toggleSearchTag(tag.tagName)"
                 >
-                  {{ tag }}
-                  <span v-if="selectedSearchTags.includes(tag)" class="tag-count">
-                    ({{ getTagCount(tag) }})
+                  {{ tag.tagName }}
+                  <span class="tag-count">
+                    ({{ tag.videoCount }})
                   </span>
                 </el-tag>
               </div>
@@ -200,16 +203,16 @@
                 <span class="filter-group-title">搜索类型：</span>
                 <el-tag
                   v-for="channel in allSearchChannels"
-                  :key="`channel-${channel}`"
+                  :key="`channel-${channel.channelName}`"
                   size="large"
-                  :type="selectedSearchChannels.includes(channel) ? 'warning' : 'info'"
-                  :effect="selectedSearchChannels.includes(channel) ? 'dark' : 'light'"
+                  :type="selectedSearchChannels.includes(channel.channelName) ? 'warning' : 'info'"
+                  :effect="selectedSearchChannels.includes(channel.channelName) ? 'dark' : 'light'"
                   class="filter-tag"
-                  @click="toggleSearchChannel(channel)"
+                  @click="toggleSearchChannel(channel.channelName)"
                 >
-                  {{ channel }}
-                  <span v-if="selectedSearchChannels.includes(channel)" class="tag-count">
-                    ({{ getChannelCount(channel) }})
+                  {{ channel.channelName }}
+                  <span class="tag-count">
+                    ({{ channel.videoCount }})
                   </span>
                 </el-tag>
               </div>
@@ -247,10 +250,10 @@
           
           <div v-loading="loading">
             <el-table 
-              :data="filteredMonitors" 
+              :data="monitorList" 
               style="width: 100%"
               @selection-change="handleSelectionChange"
-              :empty-text="filteredMonitors.length === 0 ? '暂无监控数据' : ''"
+              :empty-text="monitorList.length === 0 ? '暂无监控数据' : ''"
               size="default"
               :cell-style="{ padding: '6px 6px' }"
               :header-cell-style="{ padding: '8px 6px', background: '#fafafa' }"
@@ -299,7 +302,7 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="播主名称" width="140">
+              <el-table-column label="播主名称" width="120">
                 <template #default="{ row }">
                   <div class="author-name">
                     <el-link 
@@ -349,7 +352,7 @@
               
               <el-table-column 
                 label="搜索标签" 
-                width="150"
+                width="120"
               >
                 <template #default="{ row }">
                   <div v-if="getSearchTags(row).length > 0" class="search-tag-list">
@@ -379,7 +382,7 @@
               
               <el-table-column 
                 label="搜索类型" 
-                width="150"
+                width="100"
               >
                 <template #default="{ row }">
                   <div v-if="getSearchChannels(row).length > 0" class="search-channel-list">
@@ -407,7 +410,7 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="最新数据" width="140">
+              <el-table-column label="最新数据" width="130">
                 <template #default="{ row }">
                   <div v-if="row.latestStats" class="stats-preview">
                     <div class="stats-item">
@@ -427,7 +430,7 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="发布时间" width="160" align="center">
+              <el-table-column label="发布时间" width="150" align="center">
                 <template #default="{ row }">
                   <div class="publish-time">
                     {{ formatPublishTime(row.monitorVideo?.videoPublishTime) }}
@@ -435,7 +438,7 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="创建时间" width="160" align="center">
+              <el-table-column label="创建时间" width="150" align="center">
                 <template #default="{ row }">
                   <div class="create-time">
                     {{ formatDate(row.monitorVideo?.createTime) }}
@@ -493,6 +496,20 @@
                 </template>
               </el-table-column>
             </el-table>
+            
+            <!-- 分页组件 -->
+            <div class="pagination-container" v-if="total > 0">
+              <el-pagination
+                v-model:current-page="currentPage"
+                v-model:page-size="pageSize"
+                :page-sizes="[10, 20, 50, 100]"
+                :total="total"
+                layout="total, sizes, prev, pager, next, jumper"
+                @size-change="handleSizeChange"
+                @current-change="handleCurrentChange"
+                class="pagination"
+              />
+            </div>
           </div>
         </el-card>
       </main>
@@ -780,11 +797,24 @@ const selectedRows = ref([])
 const currentMusicId = ref(null) // 当前过滤的音乐ID
 const currentMusicInfo = ref(null)
 const selectedSearchTags = ref([])
-const allSearchTags = ref([])
+const allSearchTags = ref([]) // 格式：[{tagName: 'xxx', videoCount: 10}]
 const selectedSearchChannels = ref([])
-const allSearchChannels = ref([])
+const allSearchChannels = ref([]) // 格式：[{channelName: 'xxx', videoCount: 5}]
 const sortField = ref('diggCount') // 排序字段：diggCount(点赞数), publishTime(发布时间), createTime(创建时间)
 const sortOrder = ref('desc') // 排序顺序：desc(降序), asc(升序)
+
+// 分页相关
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+
+// 统计数据
+const statistics = ref({
+  totalCount: 0,
+  manualCount: 0,
+  autoCount: 0,
+  abnormalCount: 0
+})
 
 
 const showAddDialog = ref(false)
@@ -821,118 +851,107 @@ const emailForm = ref({ email: '' })
 
 
 
-const filteredMonitors = computed(() => {
-  let filtered = monitorList.value
-  
-  // 根据当前过滤器选择监控视频
-  switch (currentFilter.value) {
-    case 'all':
-      filtered = monitorList.value
-      break
-    case 'manual':
-      filtered = monitorList.value.filter(item => item.monitorVideo?.type === 1)
-      break
-    case 'error':
-      filtered = monitorList.value.filter(item => {
-        const status = item.monitorVideo?.status
-        return status !== 0 && status !== 1
-      })
-      break
-    case 'auto':
-      filtered = monitorList.value.filter(item => item.monitorVideo?.type === 0)
-      break
-    default:
-      filtered = monitorList.value
+// 分页处理函数
+const handleSizeChange = (newSize) => {
+  pageSize.value = newSize
+  currentPage.value = 1
+  loadMonitorVideos(1)
+}
+
+const handleCurrentChange = (newPage) => {
+  currentPage.value = newPage
+  loadMonitorVideos(newPage)
+}
+
+// 搜索处理函数
+const handleSearch = () => {
+  currentPage.value = 1
+  loadMonitorVideos(1)
+}
+
+// 加载统计数据
+const loadStatistics = async () => {
+  if (!currentMusicId.value) {
+    return
   }
   
-  // 如果有音乐ID过滤条件
-  if (currentMusicId.value) {
-    filtered = filtered.filter(item => {
-      const itemMusicId = item.userMonitor?.musicId || item.monitorVideo?.musicId
-      return itemMusicId === currentMusicId.value
-    })
-  }
-  
-  // 如果选择了搜索标签或搜索类型，进一步过滤
-  if (selectedSearchTags.value.length > 0 || selectedSearchChannels.value.length > 0) {
-    filtered = filtered.filter(item => {
-      let matchTag = true
-      let matchChannel = true
-      
-      // 如果选择了搜索标签，检查是否匹配（且关系，必须包含所有选中的标签）
-      if (selectedSearchTags.value.length > 0) {
-        const tags = getSearchTags(item)
-        matchTag = selectedSearchTags.value.every(selectedTag => tags.includes(selectedTag))
+  try {
+    const response = await monitorApi.getMonitorStatistics(currentMusicId.value)
+    console.log('Monitor页面: 统计数据API响应:', response)
+    
+    if (response.code === 200) {
+      statistics.value = response.data
+      console.log('Monitor页面: 统计数据:', statistics.value)
+    } else {
+      console.warn('获取统计数据失败:', response.message)
+      // 失败时重置为0
+      statistics.value = {
+        totalCount: 0,
+        manualCount: 0,
+        autoCount: 0,
+        abnormalCount: 0
       }
-      
-      // 如果选择了搜索类型，检查是否匹配（且关系，必须包含所有选中的类型）
-      if (selectedSearchChannels.value.length > 0) {
-        const channels = getSearchChannels(item)
-        matchChannel = selectedSearchChannels.value.every(selectedChannel => channels.includes(selectedChannel))
-      }
-      
-      // 必须同时满足标签和类型的筛选条件（如果有的话）
-      return matchTag && matchChannel
-    })
+    }
+  } catch (error) {
+    console.error('Monitor页面: 加载统计数据失败:', error)
+    // 异常时重置为0
+    statistics.value = {
+      totalCount: 0,
+      manualCount: 0,
+      autoCount: 0,
+      abnormalCount: 0
+    }
+  }
+}
+
+// 加载搜索标签和频道数据
+const loadTagsAndChannels = async () => {
+  if (!currentMusicId.value) {
+    return
   }
   
-  // 如果有搜索关键词
-  if (searchKeyword.value) {
-    const keyword = searchKeyword.value.toLowerCase()
-    filtered = filtered.filter(item => {
-      const awemeId = item.monitorVideo?.awemeId?.toString() || ''
-      const videoUrl = item.monitorVideo?.videoUrl || ''
-      const authorNickname = item.authorInfo?.nickname || ''
-      const authorId = item.videoInfo?.authorId || ''
-      
-      return awemeId.toLowerCase().includes(keyword) || 
-             videoUrl.toLowerCase().includes(keyword) ||
-             authorNickname.toLowerCase().includes(keyword) ||
-             authorId.toLowerCase().includes(keyword)
-    })
+  try {
+    const [tagsResponse, channelsResponse] = await Promise.all([
+      monitorApi.getMonitorTags(currentMusicId.value),
+      monitorApi.getMonitorChannels(currentMusicId.value)
+    ])
+    
+    console.log('Monitor页面: 标签统计API响应:', tagsResponse)
+    console.log('Monitor页面: 频道统计API响应:', channelsResponse)
+    
+    // 处理标签数据
+    if (tagsResponse.code === 200) {
+      allSearchTags.value = tagsResponse.data || []
+    } else {
+      console.warn('获取标签数据失败:', tagsResponse.message)
+      allSearchTags.value = []
+    }
+    
+    // 处理频道数据
+    if (channelsResponse.code === 200) {
+      allSearchChannels.value = channelsResponse.data || []
+    } else {
+      console.warn('获取频道数据失败:', channelsResponse.message)
+      allSearchChannels.value = []
+    }
+    
+    console.log('Monitor页面: 标签数据:', allSearchTags.value)
+    console.log('Monitor页面: 频道数据:', allSearchChannels.value)
+    
+  } catch (error) {
+    console.error('Monitor页面: 加载标签和频道数据失败:', error)
+    allSearchTags.value = []
+    allSearchChannels.value = []
   }
-  
-  // 应用排序
-  return sortMonitors(filtered)
-})
+}
 
-const activeMonitors = computed(() => {
-  // status=1是正常监控中
-  return monitorList.value.filter(item => item.monitorVideo?.status === 1)
-})
-
-const inactiveMonitors = computed(() => {
-  // status=0是已停用
-  return monitorList.value.filter(item => item.monitorVideo?.status === 0)
-})
-
-const abnormalMonitors = computed(() => {
-  // status=2,3等是监控异常
-  return monitorList.value.filter(item => {
-    const status = item.monitorVideo?.status
-    return status !== 0 && status !== 1
-  })
-})
-
-const allMonitors = computed(() => {
-  return monitorList.value
-})
-
-const manualMonitors = computed(() => {
-  // type=1是手动添加
-  return monitorList.value.filter(item => item.monitorVideo?.type === 1)
-})
-
-const autoMonitors = computed(() => {
-  // type=0是自动添加
-  return monitorList.value.filter(item => item.monitorVideo?.type === 0)
-})
 
 const currentFilter = ref('all')
 
 // 处理排序变化
 const handleSortChange = () => {
-  // 排序变化时不需要额外操作，computed会自动重新计算
+  currentPage.value = 1
+  loadMonitorVideos(1)
 }
 
 // 排序函数
@@ -1027,10 +1046,13 @@ const toggleSearchTag = (tag) => {
     selectedSearchTags.value.push(tag)
   }
   
-  const count = filteredMonitors.value.length
+  // 重新加载数据
+  currentPage.value = 1
+  loadMonitorVideos(1)
+  
   const totalSelected = selectedSearchTags.value.length + selectedSearchChannels.value.length
   if (totalSelected > 0) {
-    ElMessage.success(`已选择 ${totalSelected} 个筛选条件，筛选出 ${count} 个视频`)
+    ElMessage.success(`已选择 ${totalSelected} 个筛选条件`)
   } else {
     ElMessage.success(`已清除所有筛选条件`)
   }
@@ -1045,10 +1067,13 @@ const toggleSearchChannel = (channel) => {
     selectedSearchChannels.value.push(channel)
   }
   
-  const count = filteredMonitors.value.length
+  // 重新加载数据
+  currentPage.value = 1
+  loadMonitorVideos(1)
+  
   const totalSelected = selectedSearchTags.value.length + selectedSearchChannels.value.length
   if (totalSelected > 0) {
-    ElMessage.success(`已选择 ${totalSelected} 个筛选条件，筛选出 ${count} 个视频`)
+    ElMessage.success(`已选择 ${totalSelected} 个筛选条件`)
   } else {
     ElMessage.success(`已清除所有筛选条件`)
   }
@@ -1076,44 +1101,17 @@ const selectSearchChannel = (channel) => {
 const clearSelectedTags = () => {
   selectedSearchTags.value = []
   selectedSearchChannels.value = []
+  // 重新加载数据
+  currentPage.value = 1
+  loadMonitorVideos(1)
   ElMessage.success('已清除所有筛选条件')
 }
 
-// 获取指定标签的视频数量
-const getTagCount = (tag) => {
-  return monitorList.value.filter(item => {
-    const tags = getSearchTags(item)
-    return tags.includes(tag)
-  }).length
-}
-
-// 获取指定搜索类型的视频数量
-const getChannelCount = (channel) => {
-  return monitorList.value.filter(item => {
-    const channels = getSearchChannels(item)
-    return channels.includes(channel)
-  }).length
-}
-
-// 更新所有搜索标签和搜索类型列表
-const updateAllSearchTags = () => {
-  const tagSet = new Set()
-  const channelSet = new Set()
-  
-  monitorList.value.forEach(item => {
-    const tags = getSearchTags(item)
-    tags.forEach(tag => tagSet.add(tag))
-    
-    const channels = getSearchChannels(item)
-    channels.forEach(channel => channelSet.add(channel))
-  })
-  
-  allSearchTags.value = Array.from(tagSet).sort()
-  allSearchChannels.value = Array.from(channelSet).sort()
-}
 
 const filterVideos = (filterType) => {
   currentFilter.value = filterType
+  currentPage.value = 1 // 重置到第一页
+  loadMonitorVideos(1) // 重新加载数据
   
   const filterMessages = {
     'all': '已显示所有监控视频',
@@ -1201,8 +1199,12 @@ const formatDate = (dateStr) => {
 
 const formatPublishTime = (timestamp) => {
   if (!timestamp) return 'N/A'
-  // videoPublishTime是秒级时间戳，需要转换为毫秒
-  const date = new Date(timestamp * 1000)
+  
+  // 判断时间戳是秒级还是毫秒级
+  // 如果小于13位数字，认为是秒级时间戳
+  const isSecondTimestamp = timestamp.toString().length === 10
+  const date = new Date(isSecondTimestamp ? timestamp * 1000 : timestamp)
+  
   return date.toLocaleString('zh-CN')
 }
 
@@ -1236,180 +1238,150 @@ const getStatusText = (status) => {
   }
 }
 
-const loadMonitorVideos = async () => {
+const loadMonitorVideos = async (page = 1) => {
   loading.value = true
+  
+  // 检查是否有音乐ID，新接口需要musicId作为必填参数
+  if (!currentMusicId.value) {
+    ElMessage.error('请先选择要查看的音乐监控')
+    loading.value = false
+    return
+  }
+  
   try {
-    // 首先获取基础监控列表
-    const response = await monitorApi.getMonitorList()
+    // 构建查询参数
+    const params = {
+      musicId: currentMusicId.value,
+      pageNum: page,
+      pageSize: pageSize.value
+    }
+    
+    // 添加搜索条件
+    if (searchKeyword.value) {
+      // 根据搜索内容判断是视频ID、链接还是播主名称
+      const keyword = searchKeyword.value.trim()
+      if (/^\d+$/.test(keyword)) {
+        params.videoId = keyword
+      } else if (keyword.includes('douyin.com') || keyword.includes('iesdouyin.com')) {
+        params.videoUrl = keyword
+      } else {
+        params.authorName = keyword
+      }
+    }
+    
+    // 添加标签和频道筛选 - 直接传递数组，让axios处理序列化
+    if (selectedSearchTags.value.length > 0) {
+      params.tag = selectedSearchTags.value
+    }
+    if (selectedSearchChannels.value.length > 0) {
+      params.channel = selectedSearchChannels.value
+    }
+    
+    // 添加类型筛选
+    if (currentFilter.value === 'manual') {
+      params.type = 1
+    } else if (currentFilter.value === 'auto') {
+      params.type = 0
+    }
+    
+    // 添加状态筛选
+    if (currentFilter.value === 'error') {
+      // 异常监控暂时不通过status参数过滤，因为异常状态有多种
+    } else {
+      // 可以添加其他状态筛选逻辑
+    }
+    
+    // 添加排序参数
+    const sortFieldMap = {
+      'diggCount': 'digg_count',
+      'publishTime': 'video_publish_time', 
+      'createTime': 'create_time'
+    }
+    params.sortBy = sortFieldMap[sortField.value] || 'create_time'
+    params.sortOrder = sortOrder.value.toUpperCase()
+    
+    console.log('Monitor页面: 查询参数:', params)
+    
+    // 获取监控列表
+    const response = await monitorApi.getMonitorList(params)
     console.log('Monitor页面: 监控列表API响应:', response)
     
     if (response.code === 200) {
-      let data = response.data || []
-      console.log('Monitor页面: 处理后的监控数据:', data)
+      const responseData = response.data || {}
+      const data = responseData.list || []
       
-      // 如果有当前音乐ID，过滤出该音乐的监控数据
-      if (currentMusicId.value) {
-        data = data.filter(item => {
-          const itemMusicId = item.userMonitor?.musicId || item.monitorVideo?.musicId
-          return itemMusicId == currentMusicId.value
-        })
-        console.log('Monitor页面: 过滤后的音乐监控数据:', data)
-      }
+      console.log('Monitor页面: 新接口响应数据:', responseData)
+      console.log('Monitor页面: 监控列表数据:', data)
       
-      // 检查数据结构并记录
-      if (data.length > 0) {
-        console.log('Monitor页面: 第一条数据结构:', JSON.stringify(data[0], null, 2))
-      }
+      // 更新分页信息
+      currentPage.value = responseData.pageNum || 1
+      total.value = responseData.total || 0
       
-      // 尝试获取详细信息（包含音乐信息和最新统计数据）
-      try {
-        const detailResponse = await videoApi.getMonitorVideoDetails()
-        console.log('Monitor页面: 详细信息API响应:', detailResponse)
-        
-        if (detailResponse.code === 200) {
-          const detailData = detailResponse.data || []
-          console.log('Monitor页面: 详细信息数据:', detailData)
-          
-          // 合并基础数据和详细数据
-          const mergedData = await Promise.all(data.map(async item => {
-            const detail = detailData.find(d => 
-              d.monitor?.awemeId === item.monitorVideo?.awemeId ||
-              d.monitorVideo?.awemeId === item.monitorVideo?.awemeId
-            )
-            
-            let musicInfo = detail?.music || detail?.musicInfo
-            let videoInfo = detail?.video
-            let authorInfo = null
-            
-            // 如果详细信息中没有音乐信息，但有musicId，尝试获取音乐信息
-            if (!musicInfo && (item.userMonitor?.musicId || item.monitorVideo?.musicId)) {
-              try {
-                const musicId = item.userMonitor?.musicId || item.monitorVideo?.musicId
-                const musicResponse = await musicApi.getMusicById(musicId)
-                if (musicResponse.code === 200) {
-                  musicInfo = musicResponse.data
-                }
-              } catch (musicError) {
-                console.warn('获取音乐信息失败:', musicError)
-              }
-            }
-            
-            // 如果没有视频详细信息，尝试获取视频信息
-            if (!videoInfo && item.monitorVideo?.awemeId) {
-              try {
-                const videoResponse = await videoApi.getVideoInfo(item.monitorVideo.awemeId)
-                if (videoResponse.code === 200) {
-                  videoInfo = videoResponse.data
-                }
-              } catch (videoError) {
-                console.warn('获取视频信息失败:', videoError)
-              }
-            }
-            
-            // 如果有视频信息且包含authorId，尝试获取播主信息
-            if (videoInfo?.authorId) {
-              try {
-                const authorResponse = await authorApi.getAuthorInfo(videoInfo.authorId)
-                if (authorResponse.code === 200) {
-                  authorInfo = authorResponse.data
-                }
-              } catch (authorError) {
-                console.warn('获取播主信息失败:', authorError)
-              }
-            }
-            
-            return {
-              ...item,
-              musicInfo,
-              videoInfo,
-              authorInfo,
-              latestStats: detail?.latestStats || detail?.video?.latestStats,
-              video: detail?.video
-            }
-          }))
-          
-          console.log('Monitor页面: 合并后的数据:', mergedData)
-          monitorList.value = mergedData
-          
-          // 更新搜索标签列表
-          updateAllSearchTags()
-        } else {
-          // 如果获取详细信息失败，尝试单独获取音乐信息、视频信息、播主信息和统计数据
-          const enhancedData = await Promise.all(data.map(async item => {
-            let musicInfo = null
-            let videoInfo = null
-            let authorInfo = null
-            let latestStats = null
-            
-            // 尝试获取音乐信息
-            if (item.userMonitor?.musicId || item.monitorVideo?.musicId) {
-              try {
-                const musicId = item.userMonitor?.musicId || item.monitorVideo?.musicId
-                const musicResponse = await musicApi.getMusicById(musicId)
-                if (musicResponse.code === 200) {
-                  musicInfo = musicResponse.data
-                }
-              } catch (musicError) {
-                console.warn('获取音乐信息失败:', musicError)
-              }
-            }
-            
-            // 尝试获取视频信息
-            if (item.monitorVideo?.awemeId) {
-              try {
-                const videoResponse = await videoApi.getVideoInfo(item.monitorVideo.awemeId)
-                if (videoResponse.code === 200) {
-                  videoInfo = videoResponse.data
-                }
-              } catch (videoError) {
-                console.warn('获取视频信息失败:', videoError)
-              }
-            }
-            
-            // 如果有视频信息且包含authorId，尝试获取播主信息
-            if (videoInfo?.authorId) {
-              try {
-                const authorResponse = await authorApi.getAuthorInfo(videoInfo.authorId)
-                if (authorResponse.code === 200) {
-                  authorInfo = authorResponse.data
-                }
-              } catch (authorError) {
-                console.warn('获取播主信息失败:', authorError)
-              }
-            }
-            
-            // 尝试获取最新统计数据
-            if (item.monitorVideo?.awemeId) {
-              try {
-                const statsResponse = await videoApi.getLatestVideoStats(item.monitorVideo.awemeId)
-                if (statsResponse.code === 200) {
-                  latestStats = statsResponse.data
-                }
-              } catch (statsError) {
-                console.warn('获取统计数据失败:', statsError)
-              }
-            }
-            
-            return {
-              ...item,
-              musicInfo,
-              videoInfo,
-              authorInfo,
-              latestStats
-            }
-          }))
-          
-          monitorList.value = enhancedData
-          
-          // 更新搜索标签列表
-          updateAllSearchTags()
+      // 转换新接口数据结构为前端期望的格式
+      const convertedData = data.map(item => ({
+        // 构造与旧版本兼容的数据结构
+        monitorVideo: {
+          id: item.monitorVideoId,
+          awemeId: item.videoId,
+          videoUrl: item.videoUrl,
+          musicId: item.musicId,
+          status: item.status,
+          type: item.type,
+          createTime: item.createTime,
+          videoPublishTime: item.videoPublishTime, // 保持原始时间戳格式
+          tag: item.searchTags,
+          channel: item.searchChannel
+        },
+        videoInfo: {
+          desc: item.videoDescription,
+          authorId: item.authorId, // 使用后端返回的authorId
+          topics: item.topicTags ? JSON.parse(item.topicTags) : []
+        },
+        authorInfo: {
+          nickname: item.authorName,
+          followerCount: item.followerCount,
+          authorId: item.authorId // 同时在authorInfo中也保存authorId
+        },
+        latestStats: {
+          diggCount: item.latestDiggCount,
+          commentCount: item.latestCommentCount
+        },
+        // 保留原有字段用于兼容
+        userMonitor: {
+          musicId: item.musicId
         }
-      } catch (detailError) {
-        console.warn('Monitor页面: 获取详细信息失败，使用基础数据:', detailError)
-        monitorList.value = data
-        
-        // 更新搜索标签列表
-        updateAllSearchTags()
+      }))
+      
+      console.log('Monitor页面: 转换后的数据:', convertedData)
+      
+      // 如果需要获取当前音乐信息用于页面标题显示
+      if (currentMusicId.value && !currentMusicInfo.value) {
+        try {
+          const musicResponse = await musicApi.getMusicById(currentMusicId.value)
+          if (musicResponse.code === 200) {
+            currentMusicInfo.value = musicResponse.data
+          }
+        } catch (musicError) {
+          console.warn('获取音乐信息失败:', musicError)
+        }
+      }
+      
+      // 如果是异常监控过滤，需要在前端再次过滤
+      let finalData = convertedData
+      if (currentFilter.value === 'error') {
+        finalData = convertedData.filter(item => {
+          const status = item.monitorVideo?.status
+          return status !== 0 && status !== 1
+        })
+      }
+      
+      // 直接使用转换后的数据，新接口已包含大部分需要的信息
+      monitorList.value = finalData
+      
+      // 加载统计数据和标签频道数据（只在第一页加载时更新）
+      if (page === 1) {
+        await loadStatistics()
+        await loadTagsAndChannels()
       }
     } else {
       ElMessage.error(response.message || '加载监控列表失败')
@@ -1449,6 +1421,8 @@ const handleAddMonitor = async () => {
         file: null
       }
       await loadMonitorVideos()
+      await loadStatistics()
+      await loadTagsAndChannels()
     } else {
       // 根据API文档的具体错误信息进行处理
       if (response.message?.includes('音乐ID不能为空，音乐为必选项')) {
@@ -1659,9 +1633,11 @@ const startTaskProgressPolling = () => {
           clearInterval(taskProgressTimer.value)
           taskProgressTimer.value = null
           
-          // 任务完成后刷新监控列表
+          // 任务完成后刷新监控列表和统计
           if (taskData.status === 'COMPLETED') {
             await loadMonitorVideos()
+            await loadStatistics()
+            await loadTagsAndChannels()
           }
         }
       }
@@ -1724,6 +1700,8 @@ const toggleStatus = async (row) => {
     const response = await monitorApi.updateStatus(row.monitorVideo.id, { status: newStatus })
     if (response.code === 200) {
       await loadMonitorVideos()
+      await loadStatistics()
+      await loadTagsAndChannels()
       ElMessage.success(`${action}成功`)
     } else {
       ElMessage.error(response.message || `${action}失败`)
@@ -1746,6 +1724,8 @@ const deleteMonitor = async (row) => {
     const response = await monitorApi.deleteMonitor(row.monitorVideo.id)
     if (response.code === 200) {
       await loadMonitorVideos()
+      await loadStatistics()
+      await loadTagsAndChannels()
       ElMessage.success('删除成功')
     } else {
       ElMessage.error(response.message || '删除失败')
@@ -1775,6 +1755,8 @@ const batchToggleStatus = async (status) => {
     
     await Promise.all(promises)
     await loadMonitorVideos()
+    await loadStatistics()
+    await loadTagsAndChannels()
     showBatchDialog.value = false
     selectedRows.value = []
     ElMessage.success(`批量${action}成功`)
@@ -1799,6 +1781,8 @@ const batchDelete = async () => {
     
     await Promise.all(promises)
     await loadMonitorVideos()
+    await loadStatistics()
+    await loadTagsAndChannels()
     showBatchDialog.value = false
     selectedRows.value = []
     ElMessage.success('批量删除成功')
@@ -1870,7 +1854,7 @@ const goBackFromMusic = () => {
 }
 
 const goToAuthor = (row) => {
-  const userId = row?.videoInfo?.authorId || row?.authorInfo?.userId
+  const userId = row?.videoInfo?.authorId || row?.authorInfo?.authorId
   if (userId) {
     router.push(`/author/${userId}`)
   } else {
@@ -1890,18 +1874,25 @@ const handleRowClick = (row) => {
 
 
 
-onMounted(() => {
+onMounted(async () => {
   // 检查是否有音乐ID查询参数
   if (route.query.musicId) {
     currentMusicId.value = parseInt(route.query.musicId)
     // 拉取音乐名称用于标题显示
-    musicApi.getMusicById(currentMusicId.value).then(res => {
+    try {
+      const res = await musicApi.getMusicById(currentMusicId.value)
       if (res?.code === 200) {
         currentMusicInfo.value = res.data
       }
-    }).catch(() => {})
+    } catch (error) {
+      console.warn('获取音乐信息失败:', error)
+    }
+    
+    // 同时加载统计数据和标签频道数据
+    await loadStatistics()
+    await loadTagsAndChannels()
   }
-  loadMonitorVideos()
+  await loadMonitorVideos()
 })
 
 onUnmounted(() => {
@@ -1962,7 +1953,7 @@ onUnmounted(() => {
 }
 
 .sidebar {
-  width: 180px;
+  width: 140px;
   background: #fff;
   border-right: 1px solid #e6e8eb;
   padding: 16px 0;
@@ -1973,8 +1964,13 @@ onUnmounted(() => {
 }
 
 .menu-item {
-  margin: 4px 16px;
+  margin: 4px 8px;
   border-radius: 8px;
+  justify-content: center;
+}
+
+.menu-item .el-menu-item__content {
+  justify-content: center;
 }
 
 .content {
@@ -2504,6 +2500,19 @@ onUnmounted(() => {
 
 :deep(.el-tag::after) {
   display: none !important;
+}
+
+/* 分页样式 */
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+  border-top: 1px solid #f1f3f4;
+  margin-top: 16px;
+}
+
+.pagination {
+  background: transparent;
 }
 
 /* 视频链接换行显示 */
