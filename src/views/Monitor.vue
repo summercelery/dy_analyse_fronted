@@ -70,7 +70,7 @@
         </div>
 
         <!-- 统计卡片 -->
-        <div class="stats-row">
+        <div v-if="currentMusicId" class="stats-row">
           <div 
             class="stat-card total"
             :class="{ 'is-active': currentFilter === 'all' }"
@@ -129,8 +129,8 @@
         </div>
 
         <!-- 操作栏（已与统计卡片交换位置） -->
-        <div class="section-divider"></div>
-        <div class="toolbar">
+        <div v-if="currentMusicId" class="section-divider"></div>
+        <div v-if="currentMusicId" class="toolbar">
           <div class="toolbar-left">
             <el-button v-if="currentMusicId" @click="goBackFromMusic" :icon="ArrowLeft">
               返回
@@ -138,7 +138,7 @@
             <el-button type="primary" @click="showAddDialog = true" :icon="Plus">
               添加监控
             </el-button>
-            <el-button @click="loadMonitorVideos" :loading="loading" :icon="Refresh">
+            <el-button @click="() => loadMonitorVideos()" :loading="loading" :icon="Refresh">
               刷新
             </el-button>
           </div>
@@ -248,7 +248,19 @@
             </div>
           </template>
           
-          <div v-loading="loading">
+          <!-- 无音乐选择时的提示 -->
+          <div v-if="!currentMusicId" class="no-music-selected">
+            <el-empty 
+              description="请先选择要查看监控的音乐"
+              :image-size="120"
+            >
+              <el-button type="primary" @click="router.push('/music')">
+                选择音乐
+              </el-button>
+            </el-empty>
+          </div>
+          
+          <div v-else v-loading="loading">
             <el-table 
               :data="monitorList" 
               style="width: 100%"
@@ -302,7 +314,7 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="播主名称" width="120">
+              <el-table-column label="播主名称" width="115">
                 <template #default="{ row }">
                   <div class="author-name">
                     <el-link 
@@ -1243,8 +1255,10 @@ const loadMonitorVideos = async (page = 1) => {
   
   // 检查是否有音乐ID，新接口需要musicId作为必填参数
   if (!currentMusicId.value) {
-    ElMessage.error('请先选择要查看的音乐监控')
+    ElMessage.warning('请先选择要查看的音乐监控')
     loading.value = false
+    // 重定向到音乐管理页面让用户选择音乐
+    router.push('/music')
     return
   }
   
@@ -2130,6 +2144,11 @@ onUnmounted(() => {
 .monitor-table-card {
   border-radius: 12px;
   border: 1px solid #e6e8eb;
+}
+
+.no-music-selected {
+  padding: 40px;
+  text-align: center;
 }
 
 .card-header {

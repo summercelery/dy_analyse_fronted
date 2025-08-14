@@ -13,18 +13,6 @@ const routes = [
     meta: { requiresGuest: true }
   },
   {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: () => import('@/views/Dashboard.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/dashboard-old',
-    name: 'DashboardOld',
-    component: () => import('@/views/Dashboard.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
     path: '/monitor',
     name: 'Monitor',
     component: () => import('@/views/Monitor.vue'),
@@ -37,24 +25,6 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/music-monitor',
-    name: 'MusicMonitor',
-    component: () => import('@/views/MusicMonitor.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/music-monitor/:musicId',
-    name: 'MusicMonitorDetail',
-    component: () => import('@/views/MusicMonitorDetail.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/monitor-old',
-    name: 'MonitorOld',
-    component: () => import('@/views/Monitor.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
     path: '/stats/:awemeId',
     name: 'Stats',
     component: () => import('@/views/Stats.vue'),
@@ -64,24 +34,6 @@ const routes = [
     path: '/author/:userId',
     name: 'AuthorDetail',
     component: () => import('@/views/AuthorDetail.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/test',
-    name: 'Test',
-    component: () => import('@/views/TestDashboard.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/basic',
-    name: 'Basic',
-    component: () => import('@/views/BasicTest.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/standalone',
-    name: 'Standalone',
-    component: () => import('@/views/StandaloneDashboard.vue'),
     meta: { requiresAuth: true }
   }
 ]
