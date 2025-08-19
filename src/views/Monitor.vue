@@ -794,7 +794,8 @@ import {
   Close,
   Warning,
   MagicStick,
-  Cpu
+  Cpu,
+  TrendCharts
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -1093,20 +1094,11 @@ const toggleSearchChannel = (channel) => {
 
 // 选择搜索标签（点击表格中的标签）
 const selectSearchTag = (tag) => {
-  if (!selectedSearchTags.value.includes(tag)) {
-    selectedSearchTags.value.push(tag)
-    const count = filteredMonitors.value.length
-    ElMessage.success(`已添加标签 "${tag}"，筛选出 ${count} 个视频`)
-  }
 }
 
 // 选择搜索类型（点击表格中的类型）
 const selectSearchChannel = (channel) => {
-  if (!selectedSearchChannels.value.includes(channel)) {
-    selectedSearchChannels.value.push(channel)
-    const count = filteredMonitors.value.length
-    ElMessage.success(`已添加搜索类型 "${channel}"，筛选出 ${count} 个视频`)
-  }
+
 }
 
 // 清除所有选中的标签
@@ -1694,7 +1686,32 @@ const getTaskStatusType = (status) => {
 
 const viewStats = (awemeId) => {
   if (awemeId) {
-    router.push(`/stats/${awemeId}`)
+    // 保存当前页面状态到URL参数中
+    const currentQuery = {
+      ...route.query,
+      // 保存筛选和搜索状态
+      searchKeyword: searchKeyword.value || undefined,
+      selectedSearchTags: selectedSearchTags.value.length > 0 ? JSON.stringify(selectedSearchTags.value) : undefined,
+      selectedSearchChannels: selectedSearchChannels.value.length > 0 ? JSON.stringify(selectedSearchChannels.value) : undefined,
+      currentFilter: currentFilter.value !== 'all' ? currentFilter.value : undefined,
+      sortField: sortField.value !== 'diggCount' ? sortField.value : undefined,
+      sortOrder: sortOrder.value !== 'desc' ? sortOrder.value : undefined,
+      currentPage: currentPage.value !== 1 ? currentPage.value : undefined,
+      pageSize: pageSize.value !== 10 ? pageSize.value : undefined
+    }
+    
+    // 移除undefined值
+    Object.keys(currentQuery).forEach(key => {
+      if (currentQuery[key] === undefined) {
+        delete currentQuery[key]
+      }
+    })
+    
+    // 使用replace更新当前路由的query参数，这样返回时能恢复状态
+    router.replace({ path: route.path, query: currentQuery }).then(() => {
+      // 然后跳转到统计页面
+      router.push(`/stats/${awemeId}`)
+    })
   } else {
     ElMessage.warning('视频ID无效')
   }
@@ -1906,7 +1923,42 @@ onMounted(async () => {
     await loadStatistics()
     await loadTagsAndChannels()
   }
-  await loadMonitorVideos()
+  
+  // 恢复保存的页面状态
+  if (route.query.searchKeyword) {
+    searchKeyword.value = route.query.searchKeyword
+  }
+  if (route.query.selectedSearchTags) {
+    try {
+      selectedSearchTags.value = JSON.parse(route.query.selectedSearchTags)
+    } catch (e) {
+      console.warn('解析selectedSearchTags失败:', e)
+    }
+  }
+  if (route.query.selectedSearchChannels) {
+    try {
+      selectedSearchChannels.value = JSON.parse(route.query.selectedSearchChannels)
+    } catch (e) {
+      console.warn('解析selectedSearchChannels失败:', e)
+    }
+  }
+  if (route.query.currentFilter) {
+    currentFilter.value = route.query.currentFilter
+  }
+  if (route.query.sortField) {
+    sortField.value = route.query.sortField
+  }
+  if (route.query.sortOrder) {
+    sortOrder.value = route.query.sortOrder
+  }
+  if (route.query.currentPage) {
+    currentPage.value = parseInt(route.query.currentPage)
+  }
+  if (route.query.pageSize) {
+    pageSize.value = parseInt(route.query.pageSize)
+  }
+  
+  await loadMonitorVideos(currentPage.value)
 })
 
 onUnmounted(() => {

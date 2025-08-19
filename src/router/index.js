@@ -35,6 +35,12 @@ const routes = [
     name: 'AuthorDetail',
     component: () => import('@/views/AuthorDetail.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/hotspot',
+    name: 'HotspotAlert',
+    component: () => import('@/views/HotspotAlert.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

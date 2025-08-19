@@ -18,10 +18,10 @@ export const musicApi = {
     })
   },
 
-  // 获取所有音乐列表
+  // 获取所有音乐列表（包含热度信息）
   getMusicList() {
     return request({
-      url: '/music/list',
+      url: '/music/list/with-hotness',
       method: 'get'
     })
   },
@@ -49,6 +49,15 @@ export const musicApi = {
     return request({
       url: `/music/${id}`,
       method: 'delete'
+    })
+  },
+
+  // 获取音乐热度图表数据
+  getMusicHotnessChart(musicId, days = 7) {
+    return request({
+      url: `/music/hotness/stats/chart/${musicId}`,
+      method: 'get',
+      params: { days }
     })
   }
 }

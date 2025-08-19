@@ -15,6 +15,7 @@
             <el-icon class="dropdown-icon"><ArrowDown /></el-icon>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="updateEmail">更新邮箱</el-dropdown-item>
                 <el-dropdown-item command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -88,57 +89,71 @@
             >
               <el-table-column label="ID" width="80">
                 <template #default="{ row }">
-                  <span class="music-id">{{ row.id }}</span>
+                  <span class="music-id">{{ row.music?.id || row.id }}</span>
                 </template>
               </el-table-column>
               
-              <el-table-column label="音乐标题" min-width="200">
+              <el-table-column label="音乐标题" min-width="150">
                 <template #default="{ row }">
                   <div class="music-title">
-                    {{ row.title || 'N/A' }}
+                    {{ row.music?.title || row.title || 'N/A' }}
                   </div>
                 </template>
               </el-table-column>
               
-              <el-table-column label="作者" min-width="150">
+              <el-table-column label="作者" min-width="120">
                 <template #default="{ row }">
                   <div class="music-author">
-                    {{ row.author || 'N/A' }}
+                    {{ row.music?.author || row.author || 'N/A' }}
                   </div>
                 </template>
               </el-table-column>
               
-              <el-table-column label="专辑" min-width="150">
+              <el-table-column label="专辑" min-width="120">
                 <template #default="{ row }">
                   <div class="music-album">
-                    {{ row.album || 'N/A' }}
+                    {{ row.music?.album || row.album || 'N/A' }}
                   </div>
                 </template>
               </el-table-column>
               
-              <el-table-column label="标签" min-width="150">
+              <el-table-column label="标签" min-width="200">
                 <template #default="{ row }">
                   <div class="music-tags">
                     <el-tag
-                      v-for="tag in parseTags(row.tagList)"
+                      v-for="tag in parseTags(row.music?.tagList || row.tagList)"
                       :key="tag"
                       size="small"
                       style="margin-right: 5px;"
                     >
                       {{ tag }}
                     </el-tag>
-                    <span v-if="!parseTags(row.tagList).length" class="na-text">N/A</span>
+                    <span v-if="!parseTags(row.music?.tagList || row.tagList).length" class="na-text">N/A</span>
                   </div>
+                </template>
+              </el-table-column>
+              
+              <el-table-column label="24H热度" width="100">
+                <template #default="{ row }">
+                  <div class="hotness-info">
+                    <span class="hotness-value">{{ formatHotness(row.normalizedHotness) }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              
+              <el-table-column label="监控视频数" width="100">
+                <template #default="{ row }">
+                  <span class="video-count">{{ row.videoCount || 0 }}</span>
                 </template>
               </el-table-column>
               
               <el-table-column label="创建时间" width="180">
                 <template #default="{ row }">
-                  {{ formatDate(row.createTime) }}
+                  {{ formatDate(row.music?.createTime || row.createTime) }}
                 </template>
               </el-table-column>
               
-              <el-table-column label="操作" width="200" fixed="right">
+              <el-table-column label="操作" width="240" fixed="right">
                 <template #default="{ row }">
                   <div class="table-actions">
                     <el-tooltip content="查看详情" placement="top">
@@ -147,6 +162,26 @@
                         size="small" 
                         :icon="View"
                         @click="viewMusicDetail(row)"
+                        link
+                      />
+                    </el-tooltip>
+                    
+                    <el-tooltip content="热度提醒" placement="top">
+                      <el-button 
+                        type="warning" 
+                        size="small" 
+                        :icon="TrendCharts"
+                        @click="viewHotspotAlert(row)"
+                        link
+                      />
+                    </el-tooltip>
+                    
+                    <el-tooltip content="热度变化" placement="top">
+                      <el-button 
+                        type="success" 
+                        size="small" 
+                        :icon="DataAnalysis"
+                        @click="viewHotnessChart(row)"
                         link
                       />
                     </el-tooltip>
@@ -248,16 +283,76 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 更新邮箱对话框 -->
+    <el-dialog
+      v-model="showUpdateEmailDialog"
+      title="更新邮箱"
+      width="420px"
+    >
+      <el-form :model="emailForm" label-width="80px">
+        <el-form-item label="邮箱">
+          <el-input v-model="emailForm.email" placeholder="请输入新的邮箱地址" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showUpdateEmailDialog = false">取消</el-button>
+        <el-button type="primary" :loading="updateEmailLoading" @click="submitUpdateEmail">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 热度变化图表对话框 -->
+    <el-dialog
+      v-model="showHotnessChartDialog"
+      :title="`${currentMusicTitle} - 热度变化趋势`"
+      width="900px"
+      @close="resetHotnessChart"
+    >
+      <div class="hotness-chart-container">
+        <div class="chart-header">
+          <div class="chart-controls">
+            <el-radio-group v-model="chartDays" @change="loadHotnessChart">
+              <el-radio-button :value="7">最近7天</el-radio-button>
+              <el-radio-button :value="15">最近15天</el-radio-button>
+              <el-radio-button :value="30">最近30天</el-radio-button>
+            </el-radio-group>
+          </div>
+          <div class="chart-info" v-if="chartData && chartData.timestamps && chartData.timestamps.length > 0">
+            <span class="info-item">数据点: {{ chartData.dataCount || chartData.timestamps.length }}</span>
+            <span class="info-item">更新时间: {{ formatChartTime(chartData.endTime || chartData.lastUpdate) }}</span>
+          </div>
+        </div>
+        
+        <div v-loading="chartLoading" class="chart-content">
+          <div v-if="!chartLoading && chartData && chartData.timestamps && chartData.timestamps.length > 0" ref="chartContainer" class="chart"></div>
+          <div v-else-if="!chartLoading" class="chart-empty">
+            <el-empty description="暂无热度数据">
+              <template #description>
+                <span>该音乐暂无热度统计数据</span>
+                <br>
+                <small>请确认音乐已开始监控且有足够的数据积累</small>
+              </template>
+            </el-empty>
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button @click="showHotnessChartDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { musicApi } from '@/api/music'
+import { authApi } from '@/api/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { parseTags, stringifyTags, validateTags, isTagDuplicate, isValidTag } from '@/utils/tagUtils'
+import * as echarts from 'echarts'
 import {
   Plus,
   Refresh,
@@ -267,7 +362,9 @@ import {
   Headset,
   Odometer,
   View,
-  ArrowDown
+  ArrowDown,
+  TrendCharts,
+  DataAnalysis
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -280,6 +377,16 @@ const searchKeyword = ref('')
 const showAddDialog = ref(false)
 const editingMusic = ref(null)
 
+// 热度图表相关
+const showHotnessChartDialog = ref(false)
+const chartLoading = ref(false)
+const chartData = ref(null)
+const chartDays = ref(7)
+const currentMusicId = ref(null)
+const currentMusicTitle = ref('')
+const chartContainer = ref(null)
+let chartInstance = null
+
 const formRef = ref()
 const musicForm = ref({
   id: null,
@@ -290,6 +397,11 @@ const musicForm = ref({
 })
 
 const newTag = ref('') // 新增标签输入
+
+// 更新邮箱对话框
+const showUpdateEmailDialog = ref(false)
+const updateEmailLoading = ref(false)
+const emailForm = ref({ email: '' })
 
 const formRules = {
   title: [
@@ -322,10 +434,11 @@ const filteredMusicList = computed(() => {
   
   const keyword = searchKeyword.value.toLowerCase()
   return musicList.value.filter(item => {
-    const tags = parseTags(item.tagList)
-    return (item.title || '').toLowerCase().includes(keyword) ||
-           (item.author || '').toLowerCase().includes(keyword) ||
-           (item.album || '').toLowerCase().includes(keyword) ||
+    const music = item.music || item
+    const tags = parseTags(music.tagList)
+    return (music.title || '').toLowerCase().includes(keyword) ||
+           (music.author || '').toLowerCase().includes(keyword) ||
+           (music.album || '').toLowerCase().includes(keyword) ||
            tags.some(tag => tag.toLowerCase().includes(keyword))
   })
 })
@@ -333,6 +446,11 @@ const filteredMusicList = computed(() => {
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A'
   return new Date(dateStr).toLocaleString('zh-CN')
+}
+
+const formatHotness = (hotness) => {
+  if (hotness == null) return 'N/A'
+  return parseFloat(hotness).toFixed(1)
 }
 
 const loadMusicList = async () => {
@@ -350,6 +468,11 @@ const loadMusicList = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const handleSearch = () => {
+  // 输入框变化时的处理，可以在这里添加防抖逻辑
+  // 当前使用实时过滤，不需要额外处理
 }
 
 const searchMusic = async () => {
@@ -390,8 +513,9 @@ const resetForm = () => {
   }
 }
 
-const editMusic = (music) => {
-  editingMusic.value = music
+const editMusic = (musicData) => {
+  const music = musicData.music || musicData
+  editingMusic.value = musicData
   musicForm.value = {
     id: music.id,
     title: music.title || '',
@@ -449,7 +573,8 @@ const handleSubmit = async () => {
   }
 }
 
-const deleteMusic = async (music) => {
+const deleteMusic = async (musicData) => {
+  const music = musicData.music || musicData
   try {
     await ElMessageBox.confirm(`确认删除音乐"${music.title}"？删除后无法恢复`, '警告', {
       type: 'warning',
@@ -479,6 +604,11 @@ const deleteMusic = async (music) => {
 }
 
 const handleCommand = async (command) => {
+  if (command === 'updateEmail') {
+    emailForm.value.email = authStore.user?.email || ''
+    showUpdateEmailDialog.value = true
+    return
+  }
   if (command === 'logout') {
     try {
       await ElMessageBox.confirm('确认退出登录？', '提示', {
@@ -496,8 +626,46 @@ const handleRowClick = (row) => {
   viewMusicDetail(row)
 }
 
-const viewMusicDetail = (music) => {
+const viewMusicDetail = (musicData) => {
+  const music = musicData.music || musicData
   router.push({ path: '/monitor', query: { musicId: music.id } })
+}
+
+const viewHotspotAlert = (musicData) => {
+  const music = musicData.music || musicData
+  router.push({ path: '/hotspot', query: { musicId: music.id } })
+}
+
+const isValidEmail = (email) => {
+  const pattern = /^[\w.!#$%&'*+/=?^`{|}~-]+@[\w-]+(\.[\w-]+)+$/
+  return pattern.test(email)
+}
+
+const submitUpdateEmail = async () => {
+  const email = (emailForm.value.email || '').trim()
+  if (!email) {
+    ElMessage.warning('请输入邮箱地址')
+    return
+  }
+  if (!isValidEmail(email)) {
+    ElMessage.warning('邮箱格式不正确')
+    return
+  }
+  updateEmailLoading.value = true
+  try {
+    const res = await authApi.updateEmail({ email })
+    if (res.code === 200) {
+      authStore.setUser({ ...(authStore.user || {}), email })
+      ElMessage.success('邮箱更新成功')
+      showUpdateEmailDialog.value = false
+    } else {
+      ElMessage.error(res.message || '邮箱更新失败')
+    }
+  } catch (e) {
+    ElMessage.error('邮箱更新失败，请稍后重试')
+  } finally {
+    updateEmailLoading.value = false
+  }
 }
 
 const addTag = () => {
@@ -535,6 +703,252 @@ const addTag = () => {
 
 const removeTag = (index) => {
   musicForm.value.tags.splice(index, 1)
+}
+
+// 热度图表相关函数
+const viewHotnessChart = async (musicData) => {
+  const music = musicData.music || musicData
+  currentMusicId.value = music.id
+  currentMusicTitle.value = music.title || 'N/A'
+  chartDays.value = 7
+  showHotnessChartDialog.value = true
+  
+  // 等待对话框完全打开后再加载数据
+  await nextTick()
+  setTimeout(() => {
+    loadHotnessChart()
+  }, 200)
+}
+
+const loadHotnessChart = async () => {
+  if (!currentMusicId.value) return
+  
+  chartLoading.value = true
+  try {
+    const response = await musicApi.getMusicHotnessChart(currentMusicId.value, chartDays.value)
+    console.log('API response:', response)
+    
+    if (response.code === 200) {
+      const data = response.data
+      
+      // 验证返回的数据结构
+      if (!data) {
+        console.warn('API returned null/undefined data')
+        ElMessage.warning('暂无热度数据')
+        chartData.value = null
+        return
+      }
+      
+      // 检查必要的数据字段
+      if (!data.timestamps || !Array.isArray(data.timestamps) || data.timestamps.length === 0) {
+        console.warn('Invalid timestamps data:', data.timestamps)
+        ElMessage.warning('热度数据格式不正确')
+        chartData.value = null
+        return
+      }
+      
+      console.log('Chart data received:', data)
+      chartData.value = data
+      await nextTick()
+      
+      // 延迟渲染确保DOM已经更新
+      setTimeout(() => {
+        renderChart()
+      }, 100)
+    } else {
+      console.error('API error:', response)
+      ElMessage.error(response.message || '获取热度数据失败')
+      chartData.value = null
+    }
+  } catch (error) {
+    console.error('获取热度数据失败:', error)
+    ElMessage.error('获取热度数据失败')
+    chartData.value = null
+  } finally {
+    chartLoading.value = false
+  }
+}
+
+const renderChart = () => {
+  console.log('renderChart called, chartContainer:', chartContainer.value, 'chartData:', chartData.value)
+  
+  if (!chartContainer.value || !chartData.value) {
+    console.warn('Chart container or data not available')
+    return
+  }
+  
+  // 检查容器尺寸
+  const containerRect = chartContainer.value.getBoundingClientRect()
+  console.log('Container size:', containerRect.width, 'x', containerRect.height)
+  
+  if (containerRect.width === 0 || containerRect.height === 0) {
+    console.warn('Chart container has zero size, retrying...')
+    setTimeout(() => renderChart(), 100)
+    return
+  }
+  
+  // 检查数据完整性
+  const data = chartData.value
+  if (!data.timestamps || !Array.isArray(data.timestamps) || data.timestamps.length === 0) {
+    console.warn('Chart data timestamps is empty or invalid:', data)
+    return
+  }
+  
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+  
+  try {
+    chartInstance = echarts.init(chartContainer.value)
+    console.log('Chart instance created:', chartInstance)
+  } catch (error) {
+    console.error('Failed to initialize chart:', error)
+    return
+  }
+  
+  // 安全地处理数据，确保数组存在且有数据
+  const normalizedData = (data.normalizedHotness || []).map(v => {
+    const num = parseFloat(v)
+    return isNaN(num) ? 0 : num
+  })
+  
+  // 处理时间戳，转换为Date对象以支持时间轴
+  const timeData = data.timestamps.map(timestamp => {
+    // 假设时间格式是 "08-18 15:26"，需要转换为完整的日期时间
+    const currentYear = new Date().getFullYear()
+    const [monthDay, time] = timestamp.split(' ')
+    const [month, day] = monthDay.split('-')
+    const [hour, minute] = time.split(':')
+    return new Date(currentYear, parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute))
+  })
+  
+  console.log('Chart data:', {
+    timestamps: data.timestamps,
+    timeData,
+    normalizedData
+  })
+  
+  const option = {
+    title: {
+      text: '热度变化趋势',
+      left: 'center',
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 'bold'
+      }
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        label: {
+          backgroundColor: '#6a7985'
+        }
+      },
+      formatter: function(params) {
+        if (!params || params.length === 0) return ''
+        const param = params[0]
+        const time = new Date(param.value[0])
+        const value = parseFloat(param.value[1] || 0).toFixed(2)
+        const timeStr = `${String(time.getMonth() + 1).padStart(2, '0')}-${String(time.getDate()).padStart(2, '0')} ${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`
+        return `时间: ${timeStr}<br/>${param.seriesName}: ${value}`
+      }
+    },
+    legend: {
+      data: ['归一化热度'],
+      top: 30
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'time',
+      boundaryGap: false,
+      axisLabel: {
+        formatter: function (value) {
+          const date = new Date(value)
+          return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+        },
+        rotate: 45,
+        fontSize: 10
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '归一化热度',
+      axisLabel: {
+        formatter: '{value}'
+      }
+    },
+    series: [
+      {
+        name: '归一化热度',
+        type: 'line',
+        data: timeData.map((time, index) => [time, normalizedData[index]]),
+        smooth: true,
+        lineStyle: {
+          color: '#f56565',
+          width: 3
+        },
+        itemStyle: {
+          color: '#f56565'
+        },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [{
+              offset: 0, color: 'rgba(245, 101, 101, 0.3)'
+            }, {
+              offset: 1, color: 'rgba(245, 101, 101, 0.1)'
+            }]
+          }
+        }
+      }
+    ]
+  }
+  
+  try {
+    chartInstance.setOption(option)
+    console.log('Chart option set successfully')
+    
+    // 强制重绘
+    chartInstance.resize()
+    console.log('Chart resized')
+  } catch (error) {
+    console.error('Failed to set chart option:', error)
+    return
+  }
+  
+  // 响应式调整
+  window.addEventListener('resize', () => {
+    if (chartInstance) {
+      chartInstance.resize()
+    }
+  })
+}
+
+const resetHotnessChart = () => {
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+  chartData.value = null
+  currentMusicId.value = null
+  currentMusicTitle.value = ''
+}
+
+const formatChartTime = (timeStr) => {
+  if (!timeStr) return 'N/A'
+  return new Date(timeStr).toLocaleString('zh-CN')
 }
 
 
@@ -798,6 +1212,25 @@ onMounted(() => {
   padding: 0 8px;
 }
 
+/* 热度和视频数样式 */
+.hotness-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hotness-value {
+  font-weight: 600;
+  color: #f56565;
+  font-size: 14px;
+}
+
+.video-count {
+  font-weight: 500;
+  color: #4299e1;
+  font-size: 14px;
+}
+
 
 
 :deep(.el-card__header) {
@@ -822,5 +1255,61 @@ onMounted(() => {
 
 :deep(.el-table .el-table__cell) {
   border-bottom: 1px solid #f1f3f4;
+}
+
+/* 热度图表对话框样式 */
+.hotness-chart-container {
+  height: 500px;
+  min-height: 500px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e6e8eb;
+}
+
+.chart-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.chart-info {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chart-content {
+  height: calc(100% - 60px);
+  position: relative;
+}
+
+.chart {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+}
+
+.chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* 调整操作列宽度以适应新按钮 */
+:deep(.el-table-column--selection) {
+  width: 50px !important;
 }
 </style>
