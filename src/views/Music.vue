@@ -141,11 +141,6 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="监控视频数" width="100">
-                <template #default="{ row }">
-                  <span class="video-count">{{ row.videoCount || 0 }}</span>
-                </template>
-              </el-table-column>
               
               <el-table-column label="创建时间" width="180">
                 <template #default="{ row }">
@@ -1225,11 +1220,6 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.video-count {
-  font-weight: 500;
-  color: #4299e1;
-  font-size: 14px;
-}
 
 
 

@@ -1292,9 +1292,8 @@ const loadMonitorVideos = async (page = 1) => {
     
     // 添加状态筛选
     if (currentFilter.value === 'error') {
-      // 异常监控暂时不通过status参数过滤，因为异常状态有多种
-    } else {
-      // 可以添加其他状态筛选逻辑
+      // 异常监控：后端API中status=0表示所有异常状态
+      params.status = 0
     }
     
     // 添加排序参数
@@ -1372,17 +1371,8 @@ const loadMonitorVideos = async (page = 1) => {
         }
       }
       
-      // 如果是异常监控过滤，需要在前端再次过滤
-      let finalData = convertedData
-      if (currentFilter.value === 'error') {
-        finalData = convertedData.filter(item => {
-          const status = item.monitorVideo?.status
-          return status !== 0 && status !== 1
-        })
-      }
-      
-      // 直接使用转换后的数据，新接口已包含大部分需要的信息
-      monitorList.value = finalData
+      // 直接使用转换后的数据，后端API已根据参数筛选
+      monitorList.value = convertedData
       
       // 加载统计数据和标签频道数据（只在第一页加载时更新）
       if (page === 1) {
