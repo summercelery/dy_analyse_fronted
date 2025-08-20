@@ -153,6 +153,24 @@
               <el-option label="分享" value="share" />
               <el-option label="综合" value="comprehensive" />
             </el-select>
+            <el-date-picker
+              v-model="startTime"
+              type="date"
+              placeholder="开始日期"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              style="width: 140px; margin-right: 8px;"
+              @change="handleFilterChange"
+            />
+            <el-date-picker
+              v-model="endTime"
+              type="date"
+              placeholder="结束日期"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              style="width: 140px; margin-right: 12px;"
+              @change="handleFilterChange"
+            />
             <el-input
               v-model="searchKeyword"
               placeholder="搜索视频ID或标题"
@@ -198,15 +216,98 @@
           
           <div v-loading="loading">
             <el-table 
-              :data="hotspotList" 
+              :data="groupedHotspotList" 
               style="width: 100%"
               @selection-change="handleSelectionChange"
-              :empty-text="hotspotList.length === 0 ? '暂无热度提醒数据' : ''"
+              :empty-text="groupedHotspotList.length === 0 ? '暂无热度提醒数据' : ''"
               size="default"
               :cell-style="{ padding: '8px 6px' }"
               :header-cell-style="{ padding: '8px 6px', background: '#fafafa' }"
             >
               <el-table-column type="selection" width="50" />
+              
+              <el-table-column type="expand" width="50">
+                <template #default="{ row }">
+                  <div class="expand-content">
+                    <el-table :data="row.alerts" size="small" class="expand-table" stripe>
+                      <el-table-column label="检测时间" min-width="160" align="center">
+                        <template #default="{ row: alert }">
+                          <span class="time-text">{{ formatDate(alert.detectionTime) }}</span>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="提醒级别" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <el-tag :type="getAlertLevelType(alert.alertLevel)" size="small">
+                            {{ getAlertLevelText(alert.alertLevel) }}
+                          </el-tag>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="时间窗口" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <el-tag :type="getTimeWindowType(alert.timeWindow)" size="small">
+                            {{ getTimeWindowText(alert.timeWindow) }}
+                          </el-tag>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="触发指标" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <el-tag size="small" type="info">
+                            {{ getTriggerMetricText(alert.triggerMetric) }}
+                          </el-tag>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="增长率" width="120" align="center">
+                        <template #default="{ row: alert }">
+                          <span :class="getGrowthRateClass(alert.growthRate)" class="growth-text">
+                            +{{ formatGrowthRate(alert.growthRate) }}%
+                          </span>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="当前点赞" width="120" align="center">
+                        <template #default="{ row: alert }">
+                          <span class="stat-number">{{ formatNumber(alert.currentDiggCount || 0) }}</span>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="当前评论" width="120" align="center">
+                        <template #default="{ row: alert }">
+                          <span class="stat-number">{{ formatNumber(alert.currentCommentCount || 0) }}</span>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="操作" width="100" align="center" fixed="right">
+                        <template #default="{ row: alert }">
+                          <div class="expand-actions">
+                            <el-tooltip content="查看详情" placement="top">
+                              <el-button 
+                                size="small" 
+                                type="primary" 
+                                link 
+                                :icon="View"
+                                @click="viewAlertDetail(alert)"
+                              />
+                            </el-tooltip>
+                            <el-tooltip content="删除" placement="top">
+                              <el-button 
+                                size="small" 
+                                type="danger" 
+                                link 
+                                :icon="Delete"
+                                @click="deleteAlert(alert)"
+                              />
+                            </el-tooltip>
+                          </div>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                  </div>
+                </template>
+              </el-table-column>
               
               <el-table-column label="视频ID" width="140">
                 <template #default="{ row }">
@@ -264,47 +365,24 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="提醒级别" width="100" align="center">
+              <el-table-column label="提醒统计" width="180" align="center">
                 <template #default="{ row }">
-                  <el-tag 
-                    :type="getAlertLevelType(row.alertLevel)"
-                    size="small"
-                    class="alert-level-tag"
-                  >
-                    {{ getAlertLevelText(row.alertLevel) }}
-                  </el-tag>
+                  <div class="alert-stats">
+                    <div class="total-alerts">共 {{ row.totalAlerts }} 条提醒</div>
+                    <div class="level-stats">
+                      <el-tag v-if="row.level1Count > 0" type="success" size="small">轻度{{ row.level1Count }}</el-tag>
+                      <el-tag v-if="row.level2Count > 0" type="warning" size="small">中度{{ row.level2Count }}</el-tag>
+                      <el-tag v-if="row.level3Count > 0" type="danger" size="small">高度{{ row.level3Count }}</el-tag>
+                    </div>
+                  </div>
                 </template>
               </el-table-column>
               
-              <el-table-column label="时间窗口" width="100" align="center">
-                <template #default="{ row }">
-                  <el-tag 
-                    :type="getTimeWindowType(row.timeWindow)"
-                    size="small"
-                    class="time-window-tag"
-                  >
-                    {{ getTimeWindowText(row.timeWindow) }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              
-              <el-table-column label="触发指标" width="100" align="center">
-                <template #default="{ row }">
-                  <el-tag 
-                    size="small"
-                    type="info"
-                    class="trigger-metric-tag"
-                  >
-                    {{ getTriggerMetricText(row.triggerMetric) }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              
-              <el-table-column label="增长率" width="100" align="center">
+              <el-table-column label="最高增长率" width="120" align="center">
                 <template #default="{ row }">
                   <div class="growth-rate">
-                    <span :class="getGrowthRateClass(row.growthRate)">
-                      +{{ formatGrowthRate(row.growthRate) }}%
+                    <span :class="getGrowthRateClass(row.maxGrowthRate)">
+                      +{{ formatGrowthRate(row.maxGrowthRate) }}%
                     </span>
                   </div>
                 </template>
@@ -329,15 +407,15 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="检测时间" width="150" align="center">
+              <el-table-column label="最新检测时间" width="150" align="center">
                 <template #default="{ row }">
                   <div class="detection-time">
-                    {{ formatDate(row.detectionTime) }}
+                    {{ formatDate(row.latestDetectionTime) }}
                   </div>
                 </template>
               </el-table-column>
               
-              <el-table-column label="操作" width="150" fixed="right">
+              <el-table-column label="操作" width="120" fixed="right">
                 <template #default="{ row }">
                   <div class="table-actions">
                     <el-tooltip content="查看统计" placement="top">
@@ -355,17 +433,7 @@
                         type="primary" 
                         size="small" 
                         :icon="View"
-                        @click="viewAlertDetail(row)"
-                        link
-                      />
-                    </el-tooltip>
-                    
-                    <el-tooltip content="删除" placement="top">
-                      <el-button 
-                        type="danger" 
-                        size="small" 
-                        :icon="Delete"
-                        @click="deleteAlert(row)"
+                        @click="viewAlertDetail(row.latestAlert)"
                         link
                       />
                     </el-tooltip>
@@ -373,21 +441,6 @@
                 </template>
               </el-table-column>
             </el-table>
-            
-            <!-- 分页组件 -->
-            <div class="pagination-container" v-if="total > 0">
-              <el-pagination
-                v-model:current-page="currentPage"
-                v-model:page-size="pageSize"
-                :page-sizes="[10, 20, 50, 100]"
-                :total="total"
-                layout="total, sizes, prev, pager, next, jumper"
-                @size-change="handleSizeChange"
-                @current-change="handleCurrentChange"
-                class="pagination"
-                background
-              />
-            </div>
           </div>
         </el-card>
       </main>
@@ -508,6 +561,7 @@ const authStore = useAuthStore()
 const loading = ref(false)
 const triggeringDetection = ref(false)
 const hotspotList = ref([])
+const groupedHotspotList = ref([])
 const selectedRows = ref([])
 const currentMusicId = ref(null)
 const currentMusicInfo = ref(null)
@@ -518,11 +572,9 @@ const alertLevel = ref(null)
 const timeWindow = ref('')
 const triggerMetric = ref('')
 const searchKeyword = ref('')
+const startTime = ref('')
+const endTime = ref('')
 
-// 分页相关
-const currentPage = ref(1)
-const pageSize = ref(20)
-const total = ref(0)
 
 // 统计数据
 const statistics = ref({
@@ -615,28 +667,73 @@ const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleString('zh-CN')
 }
 
-// 分页处理函数
-const handleSizeChange = (newSize) => {
-  pageSize.value = newSize
-  currentPage.value = 1
-  loadHotspotAlerts(1)
+// 按视频ID分组热度提醒数据
+const groupHotspotData = (data) => {
+  const grouped = {}
+  
+  data.forEach(item => {
+    const awemeId = item.awemeId
+    if (!grouped[awemeId]) {
+      grouped[awemeId] = {
+        awemeId: awemeId,
+        videoTitle: item.videoTitle,
+        authorNickname: item.authorNickname,
+        musicTitle: item.musicTitle,
+        musicAuthor: item.musicAuthor,
+        totalAlerts: 0,
+        latestAlert: null,
+        alerts: [],
+        // 统计不同级别的提醒数量
+        level1Count: 0,
+        level2Count: 0,
+        level3Count: 0,
+        // 最高增长率和当前数据（取最新的）
+        maxGrowthRate: 0,
+        currentDiggCount: 0,
+        currentCommentCount: 0,
+        latestDetectionTime: null
+      }
+    }
+    
+    const group = grouped[awemeId]
+    group.alerts.push(item)
+    group.totalAlerts++
+    
+    // 统计不同级别
+    if (item.alertLevel === 1) group.level1Count++
+    else if (item.alertLevel === 2) group.level2Count++
+    else if (item.alertLevel === 3) group.level3Count++
+    
+    // 更新最高增长率
+    if (item.growthRate > group.maxGrowthRate) {
+      group.maxGrowthRate = item.growthRate
+    }
+    
+    // 更新最新的提醒（用于显示最新数据）
+    if (!group.latestAlert || new Date(item.detectionTime) > new Date(group.latestAlert.detectionTime)) {
+      group.latestAlert = item
+      group.currentDiggCount = item.currentDiggCount
+      group.currentCommentCount = item.currentCommentCount
+      group.latestDetectionTime = item.detectionTime
+    }
+  })
+  
+  // 将分组后的数据转换为数组，并按最新检测时间排序
+  return Object.values(grouped).sort((a, b) => 
+    new Date(b.latestDetectionTime) - new Date(a.latestDetectionTime)
+  )
 }
 
-const handleCurrentChange = (newPage) => {
-  currentPage.value = newPage
-  loadHotspotAlerts(newPage)
-}
+
 
 // 搜索处理函数
 const handleSearch = () => {
-  currentPage.value = 1
-  loadHotspotAlerts(1)
+  loadHotspotAlerts()
 }
 
 // 筛选处理函数
 const handleFilterChange = () => {
-  currentPage.value = 1
-  loadHotspotAlerts(1)
+  loadHotspotAlerts()
 }
 
 // 加载统计数据
@@ -660,11 +757,9 @@ const loadStatistics = async () => {
 }
 
 // 加载全局热度提醒列表
-const loadGlobalHotspotAlerts = async (page = 1) => {
+const loadGlobalHotspotAlerts = async () => {
   try {
     const params = {
-      pageNum: page,
-      pageSize: pageSize.value,
       orderBy: 'create_time',
       orderDir: 'DESC'
     }
@@ -682,23 +777,27 @@ const loadGlobalHotspotAlerts = async (page = 1) => {
     if (searchKeyword.value) {
       params.awemeId = searchKeyword.value.trim()
     }
+    if (startTime.value) {
+      params.startTime = startTime.value + 'T00:00:00'
+    }
+    if (endTime.value) {
+      params.endTime = endTime.value + 'T23:59:59'
+    }
     
     const response = await hotspotApi.getAlertList(params)
     
     if (response.code === 200) {
       const responseData = response.data || {}
-      hotspotList.value = responseData.list || []
+      hotspotList.value = responseData.list || responseData || []
       
-      // 更新分页信息
-      currentPage.value = responseData.pageNum || 1
-      total.value = responseData.total || 0
+      // 按视频ID分组数据
+      groupedHotspotList.value = groupHotspotData(hotspotList.value)
       
       console.log('全局热度提醒API响应:', responseData)
+      console.log('分组后的数据:', groupedHotspotList.value)
       
       // 加载统计数据
-      if (page === 1) {
-        await loadStatistics()
-      }
+      await loadStatistics()
     } else {
       ElMessage.error(response.message || '加载全局热度提醒列表失败')
     }
@@ -713,7 +812,6 @@ const loadGlobalHotspotAlerts = async (page = 1) => {
 // 筛选提醒
 const filterAlerts = (filterType) => {
   currentFilter.value = filterType
-  currentPage.value = 1
   
   // 根据筛选类型设置alertLevel
   switch (filterType) {
@@ -731,23 +829,21 @@ const filterAlerts = (filterType) => {
       break
   }
   
-  loadHotspotAlerts(1)
+  loadHotspotAlerts()
 }
 
 // 加载热度提醒列表
-const loadHotspotAlerts = async (page = 1) => {
+const loadHotspotAlerts = async () => {
   loading.value = true
   
   // 如果没有音乐ID，查询全局热度提醒
   if (!currentMusicId.value) {
-    await loadGlobalHotspotAlerts(page)
+    await loadGlobalHotspotAlerts()
     return
   }
   
   try {
     const params = {
-      pageNum: page,
-      pageSize: pageSize.value,
       orderBy: 'create_time',
       orderDir: 'DESC'
     }
@@ -765,31 +861,27 @@ const loadHotspotAlerts = async (page = 1) => {
     if (searchKeyword.value) {
       params.awemeId = searchKeyword.value.trim()
     }
+    if (startTime.value) {
+      params.startTime = startTime.value + 'T00:00:00'
+    }
+    if (endTime.value) {
+      params.endTime = endTime.value + 'T23:59:59'
+    }
     
     const response = await hotspotApi.getMusicAlertList(currentMusicId.value, params)
     
     if (response.code === 200) {
       const responseData = response.data || {}
-      hotspotList.value = responseData.list || []
+      hotspotList.value = responseData.list || responseData || []
       
-      // 更新分页信息 - 根据API文档的PageInfo结构
-      currentPage.value = responseData.pageNum || 1
-      total.value = responseData.total || 0
+      // 按视频ID分组数据
+      groupedHotspotList.value = groupHotspotData(hotspotList.value)
       
       console.log('热度提醒API响应:', responseData)
-      console.log('分页信息:', {
-        total: responseData.total,
-        pageNum: responseData.pageNum,
-        pageSize: responseData.pageSize,
-        pages: responseData.pages,
-        hasNextPage: responseData.hasNextPage,
-        hasPreviousPage: responseData.hasPreviousPage
-      })
+      console.log('分组后的数据:', groupedHotspotList.value)
       
       // 加载统计数据
-      if (page === 1) {
-        await loadStatistics()
-      }
+      await loadStatistics()
     } else {
       ElMessage.error(response.message || '加载热度提醒列表失败')
     }
@@ -832,9 +924,9 @@ const viewStats = (awemeId) => {
       alertLevel: alertLevel.value || undefined,
       timeWindow: timeWindow.value || undefined,
       triggerMetric: triggerMetric.value || undefined,
-      currentFilter: currentFilter.value !== 'all' ? currentFilter.value : undefined,
-      currentPage: currentPage.value !== 1 ? currentPage.value : undefined,
-      pageSize: pageSize.value !== 20 ? pageSize.value : undefined
+      startTime: startTime.value || undefined,
+      endTime: endTime.value || undefined,
+      currentFilter: currentFilter.value !== 'all' ? currentFilter.value : undefined
     }
     
     // 移除undefined值
@@ -946,7 +1038,22 @@ const goBackFromMusic = () => {
   router.push('/music')
 }
 
+// 初始化默认日期（当天）
+const initDefaultDate = () => {
+  const today = new Date()
+  const todayStr = today.toISOString().split('T')[0]
+  
+  // 如果没有从URL恢复日期参数，则设置为当天
+  if (!route.query.startTime && !route.query.endTime) {
+    startTime.value = todayStr
+    endTime.value = todayStr
+  }
+}
+
 onMounted(async () => {
+  // 初始化默认日期
+  initDefaultDate()
+  
   // 检查是否有音乐ID查询参数
   if (route.query.musicId) {
     currentMusicId.value = parseInt(route.query.musicId)
@@ -979,14 +1086,14 @@ onMounted(async () => {
   if (route.query.currentFilter) {
     currentFilter.value = route.query.currentFilter
   }
-  if (route.query.currentPage) {
-    currentPage.value = parseInt(route.query.currentPage)
+  if (route.query.startTime) {
+    startTime.value = route.query.startTime
   }
-  if (route.query.pageSize) {
-    pageSize.value = parseInt(route.query.pageSize)
+  if (route.query.endTime) {
+    endTime.value = route.query.endTime
   }
   
-  await loadHotspotAlerts(currentPage.value)
+  await loadHotspotAlerts()
 })
 </script>
 
@@ -1321,13 +1428,6 @@ onMounted(async () => {
   align-items: center;
 }
 
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  padding: 20px 0;
-  border-top: 1px solid #f1f3f4;
-  margin-top: 16px;
-}
 
 .alert-detail {
   max-height: 60vh;
@@ -1371,5 +1471,146 @@ onMounted(async () => {
 
 :deep(.el-tag) {
   border: none !important;
+}
+
+
+/* 提醒统计样式 */
+.alert-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.total-alerts {
+  font-weight: 600;
+  color: #374151;
+  font-size: 13px;
+}
+
+.level-stats {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.level-stats .el-tag {
+  margin: 0 !important;
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+}
+
+/* 展开行内容样式 */
+.expand-content {
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-left: 4px solid #3b82f6;
+  margin: 0;
+  position: relative;
+}
+
+.expand-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, #e2e8f0 50%, transparent 100%);
+}
+
+.expand-table {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+:deep(.expand-table .el-table__header) {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+
+:deep(.expand-table .el-table th) {
+  background: transparent;
+  font-weight: 600;
+  color: #475569;
+  font-size: 13px;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 12px;
+  text-align: center;
+}
+
+:deep(.expand-table .el-table td) {
+  padding: 12px;
+  font-size: 12px;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: center;
+  background: #ffffff;
+}
+
+:deep(.expand-table .el-table__body tr:hover > td) {
+  background-color: #f0f9ff !important;
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+:deep(.expand-table .el-table__row:last-child td) {
+  border-bottom: none;
+}
+
+:deep(.expand-table .el-table__stripe) {
+  background-color: #fbfcfd !important;
+}
+
+:deep(.expand-table .el-table__stripe:hover) {
+  background-color: #f0f9ff !important;
+}
+
+/* 优化展开表格中的标签样式 */
+:deep(.expand-table .el-tag) {
+  border-radius: 6px;
+  font-weight: 500;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 展开表格中的文本样式 */
+.time-text {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.growth-text {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.stat-number {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.expand-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 为主表格添加更好的间距 */
+:deep(.el-table .el-table__expand-column .cell) {
+  padding: 0;
+  text-align: center;
+}
+
+:deep(.el-table__expand-icon) {
+  color: #6b7280;
+  transition: all 0.3s ease;
+}
+
+:deep(.el-table__expand-icon--expanded) {
+  color: #3b82f6;
 }
 </style>
