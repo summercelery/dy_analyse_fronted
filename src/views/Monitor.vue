@@ -133,7 +133,7 @@
         <div v-if="currentMusicId" class="toolbar">
           <div class="toolbar-left">
             <el-button v-if="currentMusicId" @click="goBackFromMusic" :icon="ArrowLeft">
-              返回
+              {{ route.query.from === 'hotspot' ? '返回热度提醒' : '返回音乐管理' }}
             </el-button>
             <el-button type="primary" @click="showAddDialog = true" :icon="Plus">
               添加监控
@@ -1881,7 +1881,24 @@ const clearMusicFilter = () => {
 }
 
 const goBackFromMusic = () => {
-  router.push('/music')
+  // 检查是否来自热度提醒页面
+  if (route.query.from === 'hotspot') {
+    // 构建热度提醒页面的路径和查询参数
+    const hotspotQuery = {}
+    
+    // 如果有音乐ID，传递给热度提醒页面
+    if (currentMusicId.value) {
+      hotspotQuery.musicId = currentMusicId.value
+    }
+    
+    router.push({ 
+      path: '/hotspot', 
+      query: hotspotQuery
+    })
+  } else {
+    // 默认返回音乐管理页面
+    router.push('/music')
+  }
 }
 
 const goToAuthor = (row) => {

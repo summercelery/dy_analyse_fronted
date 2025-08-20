@@ -101,86 +101,103 @@
         </div>
 
         <!-- 筛选和操作栏 -->
-        <div class="section-divider"></div>
-        <div class="toolbar">
-          <div class="toolbar-left">
-            <el-button v-if="currentMusicId" @click="goBackFromMusic" :icon="ArrowLeft">
-              返回音乐管理
-            </el-button>
-            <el-button v-else @click="router.push('/music')" :icon="ArrowLeft">
-              选择音乐
-            </el-button>
-            <el-button @click="() => loadHotspotAlerts()" :loading="loading" :icon="Refresh">
-              刷新
-            </el-button>
-            <el-button type="primary" @click="triggerDetection" :loading="triggeringDetection" :icon="MagicStick">
-              手动检测
-            </el-button>
+        <div class="filter-section">
+          <div class="filter-top">
+            <div class="nav-controls">
+              <el-button v-if="currentMusicId" @click="goBackFromMusic" :icon="ArrowLeft" size="default">
+                返回音乐管理
+              </el-button>
+              <el-button v-else @click="router.push('/music')" :icon="ArrowLeft" size="default">
+                选择音乐
+              </el-button>
+              <el-button @click="() => loadHotspotAlerts()" :loading="loading" :icon="Refresh" size="default">
+                刷新数据
+              </el-button>
+            </div>
+            
+            <div class="search-controls">
+              <el-input
+                v-model="searchKeyword"
+                placeholder="搜索视频ID或标题"
+                :prefix-icon="Search"
+                style="width: 280px;"
+                clearable
+                @keyup.enter="handleSearch"
+                @clear="handleSearch"
+              />
+              <el-button @click="handleSearch" :icon="Search" type="primary">搜索</el-button>
+            </div>
           </div>
-          <div class="toolbar-right">
-            <el-select
-              v-model="alertLevel"
-              placeholder="提醒级别"
-              style="width: 120px; margin-right: 12px;"
-              @change="handleFilterChange"
-              clearable
-            >
-              <el-option label="轻度飙升" :value="1" />
-              <el-option label="中度飙升" :value="2" />
-              <el-option label="高度爆发" :value="3" />
-            </el-select>
-            <el-select
-              v-model="timeWindow"
-              placeholder="时间窗口"
-              style="width: 120px; margin-right: 12px;"
-              @change="handleFilterChange"
-              clearable
-            >
-              <el-option label="短期(1小时)" value="short" />
-              <el-option label="中期(6小时)" value="medium" />
-              <el-option label="长期(24小时)" value="long" />
-            </el-select>
-            <el-select
-              v-model="triggerMetric"
-              placeholder="触发指标"
-              style="width: 120px; margin-right: 12px;"
-              @change="handleFilterChange"
-              clearable
-            >
-              <el-option label="点赞" value="digg" />
-              <el-option label="评论" value="comment" />
-              <el-option label="收藏" value="collect" />
-              <el-option label="分享" value="share" />
-              <el-option label="综合" value="comprehensive" />
-            </el-select>
-            <el-date-picker
-              v-model="startTime"
-              type="date"
-              placeholder="开始日期"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-              style="width: 140px; margin-right: 8px;"
-              @change="handleFilterChange"
-            />
-            <el-date-picker
-              v-model="endTime"
-              type="date"
-              placeholder="结束日期"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-              style="width: 140px; margin-right: 12px;"
-              @change="handleFilterChange"
-            />
-            <el-input
-              v-model="searchKeyword"
-              placeholder="搜索视频ID或标题"
-              :prefix-icon="Search"
-              style="width: 300px;"
-              clearable
-              @keyup.enter="handleSearch"
-              @clear="handleSearch"
-            />
-            <el-button @click="handleSearch" :icon="Search" style="margin-left: 8px;">搜索</el-button>
+          
+          <div class="filter-bottom">
+            <div class="filter-group">
+              <span class="filter-label">筛选条件:</span>
+              <el-select
+                v-model="alertLevel"
+                placeholder="提醒级别"
+                style="width: 120px;"
+                @change="handleFilterChange"
+                clearable
+                size="default"
+              >
+                <el-option label="轻度飙升" :value="1" />
+                <el-option label="中度飙升" :value="2" />
+                <el-option label="高度爆发" :value="3" />
+              </el-select>
+              
+              <el-select
+                v-model="timeWindow"
+                placeholder="时间窗口"
+                style="width: 120px;"
+                @change="handleFilterChange"
+                clearable
+                size="default"
+              >
+                <el-option label="短期(1小时)" value="short" />
+                <el-option label="中期(6小时)" value="medium" />
+                <el-option label="长期(24小时)" value="long" />
+              </el-select>
+              
+              <el-select
+                v-model="triggerMetric"
+                placeholder="触发指标"
+                style="width: 120px;"
+                @change="handleFilterChange"
+                clearable
+                size="default"
+              >
+                <el-option label="点赞" value="digg" />
+                <el-option label="评论" value="comment" />
+                <el-option label="收藏" value="collect" />
+                <el-option label="分享" value="share" />
+                <el-option label="综合" value="comprehensive" />
+              </el-select>
+            </div>
+            
+            <div class="date-group">
+              <span class="filter-label">时间范围:</span>
+              <el-date-picker
+                v-model="startTime"
+                type="date"
+                placeholder="开始日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 140px;"
+                @change="handleFilterChange"
+                size="default"
+              />
+              <span class="date-separator">至</span>
+              <el-date-picker
+                v-model="endTime"
+                type="date"
+                placeholder="结束日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 140px;"
+                @change="handleFilterChange"
+                size="default"
+              />
+            </div>
           </div>
         </div>
 
@@ -260,23 +277,47 @@
                         </template>
                       </el-table-column>
                       
-                      <el-table-column label="增长率" width="120" align="center">
+                      <el-table-column label="触发评分" width="100" align="center">
                         <template #default="{ row: alert }">
-                          <span :class="getGrowthRateClass(alert.growthRate)" class="growth-text">
-                            +{{ formatGrowthRate(alert.growthRate) }}%
+                          <span :class="getTriggerScoreClass(alert.triggerScore, alert.timeWindow)" class="score-text">
+                            {{ formatTriggerScore(alert.triggerScore) }}
                           </span>
                         </template>
                       </el-table-column>
                       
-                      <el-table-column label="当前点赞" width="120" align="center">
+                      <el-table-column label="点赞增长" width="110" align="center">
                         <template #default="{ row: alert }">
-                          <span class="stat-number">{{ formatNumber(alert.currentDiggCount || 0) }}</span>
+                          <div class="growth-detail">
+                            <div class="growth-rate">+{{ formatGrowthRate(alert.diggGrowthRate) }}%</div>
+                            <div class="growth-count">{{ formatNumber(alert.currentDiggCount || 0) }}</div>
+                          </div>
                         </template>
                       </el-table-column>
                       
-                      <el-table-column label="当前评论" width="120" align="center">
+                      <el-table-column label="评论增长" width="110" align="center">
                         <template #default="{ row: alert }">
-                          <span class="stat-number">{{ formatNumber(alert.currentCommentCount || 0) }}</span>
+                          <div class="growth-detail">
+                            <div class="growth-rate">+{{ formatGrowthRate(alert.commentGrowthRate) }}%</div>
+                            <div class="growth-count">{{ formatNumber(alert.currentCommentCount || 0) }}</div>
+                          </div>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="收藏增长" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <div class="growth-detail">
+                            <div class="growth-rate">+{{ formatGrowthRate(alert.collectGrowthRate) }}%</div>
+                            <div class="growth-count">{{ formatNumber(alert.currentCollectCount || 0) }}</div>
+                          </div>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="分享增长" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <div class="growth-detail">
+                            <div class="growth-rate">+{{ formatGrowthRate(alert.shareGrowthRate) }}%</div>
+                            <div class="growth-count">{{ formatNumber(alert.currentShareCount || 0) }}</div>
+                          </div>
                         </template>
                       </el-table-column>
                       
@@ -313,7 +354,16 @@
                 <template #default="{ row }">
                   <div class="video-id">
                     <el-link 
-                      v-if="row.awemeId"
+                      v-if="row.awemeId && row.videoUrl"
+                      :href="row.videoUrl" 
+                      target="_blank"
+                      type="primary"
+                      class="video-id-link"
+                    >
+                      {{ row.awemeId }}
+                    </el-link>
+                    <el-link 
+                      v-else-if="row.awemeId"
                       :href="`https://www.douyin.com/video/${row.awemeId}`" 
                       target="_blank"
                       type="primary"
@@ -378,19 +428,19 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="最高增长率" width="120" align="center">
+              <el-table-column label="最高评分" width="120" align="center">
                 <template #default="{ row }">
-                  <div class="growth-rate">
-                    <span :class="getGrowthRateClass(row.maxGrowthRate)">
-                      +{{ formatGrowthRate(row.maxGrowthRate) }}%
+                  <div class="trigger-score">
+                    <span :class="getTriggerScoreClass(row.maxTriggerScore, row.maxTriggerScoreTimeWindow)" class="score-text">
+                      {{ formatTriggerScore(row.maxTriggerScore) }}
                     </span>
                   </div>
                 </template>
               </el-table-column>
               
-              <el-table-column label="当前数据" width="150">
+              <el-table-column label="当前数据" width="130">
                 <template #default="{ row }">
-                  <div class="current-stats">
+                  <div class="stats-preview">
                     <div class="stats-item">
                       <div class="heart-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -400,7 +450,7 @@
                       <span>{{ formatNumber(row.currentDiggCount || 0) }}</span>
                     </div>
                     <div class="stats-item">
-                      <el-icon><ChatDotRound /></el-icon>
+                      <el-icon size="14"><ChatDotRound /></el-icon>
                       <span>{{ formatNumber(row.currentCommentCount || 0) }}</span>
                     </div>
                   </div>
@@ -415,7 +465,7 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="操作" width="120" fixed="right">
+              <el-table-column label="操作" width="150" fixed="right">
                 <template #default="{ row }">
                   <div class="table-actions">
                     <el-tooltip content="查看统计" placement="top">
@@ -434,6 +484,16 @@
                         size="small" 
                         :icon="View"
                         @click="viewAlertDetail(row.latestAlert)"
+                        link
+                      />
+                    </el-tooltip>
+                    
+                    <el-tooltip content="跳转监控" placement="top">
+                      <el-button 
+                        type="success" 
+                        size="small" 
+                        :icon="TrendCharts"
+                        @click="goToMonitor(row.awemeId)"
                         link
                       />
                     </el-tooltip>
@@ -486,14 +546,19 @@
         </div>
         
         <div class="detail-section">
+          <h4>评分数据</h4>
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="触发评分">{{ formatTriggerScore(currentAlert.triggerScore) }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+        
+        <div class="detail-section">
           <h4>增长数据</h4>
           <el-descriptions :column="2" border>
             <el-descriptions-item label="点赞增长率">+{{ formatGrowthRate(currentAlert.diggGrowthRate) }}%</el-descriptions-item>
             <el-descriptions-item label="评论增长率">+{{ formatGrowthRate(currentAlert.commentGrowthRate) }}%</el-descriptions-item>
             <el-descriptions-item label="收藏增长率">+{{ formatGrowthRate(currentAlert.collectGrowthRate) }}%</el-descriptions-item>
             <el-descriptions-item label="分享增长率">+{{ formatGrowthRate(currentAlert.shareGrowthRate) }}%</el-descriptions-item>
-            <el-descriptions-item label="综合指数">{{ formatGrowthRate(currentAlert.comprehensiveIndex) }}</el-descriptions-item>
-            <el-descriptions-item label="主要增长率">+{{ formatGrowthRate(currentAlert.growthRate) }}%</el-descriptions-item>
           </el-descriptions>
         </div>
         
@@ -546,7 +611,6 @@ import {
   Bell,
   Warning,
   Refresh,
-  MagicStick,
   Search,
   View,
   Delete,
@@ -559,7 +623,6 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const loading = ref(false)
-const triggeringDetection = ref(false)
 const hotspotList = ref([])
 const groupedHotspotList = ref([])
 const selectedRows = ref([])
@@ -662,6 +725,42 @@ const formatGrowthRate = (rate) => {
   return Math.round(rate * 100) / 100
 }
 
+const formatTriggerScore = (score) => {
+  if (!score) return '0'
+  return Math.round(score * 100) / 100
+}
+
+const getTriggerScoreClass = (score, timeWindow) => {
+  if (!score) return 'score-low'
+  
+  // 根据时间窗口设置不同的阈值
+  let lowThreshold, highThreshold
+  
+  switch (timeWindow) {
+    case 'short':
+      lowThreshold = 60
+      highThreshold = 100
+      break
+    case 'medium':
+      lowThreshold = 100
+      highThreshold = 200
+      break
+    case 'long':
+      lowThreshold = 160
+      highThreshold = 320
+      break
+    default:
+      // 如果时间窗口未知，使用短期的阈值
+      lowThreshold = 60
+      highThreshold = 100
+      break
+  }
+  
+  if (score > highThreshold) return 'score-high'
+  if (score >= lowThreshold) return 'score-medium'
+  return 'score-low'
+}
+
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A'
   return new Date(dateStr).toLocaleString('zh-CN')
@@ -677,6 +776,8 @@ const groupHotspotData = (data) => {
       grouped[awemeId] = {
         awemeId: awemeId,
         videoTitle: item.videoTitle,
+        videoUrl: item.videoUrl,
+        videoCover: item.videoCover,
         authorNickname: item.authorNickname,
         musicTitle: item.musicTitle,
         musicAuthor: item.musicAuthor,
@@ -687,10 +788,13 @@ const groupHotspotData = (data) => {
         level1Count: 0,
         level2Count: 0,
         level3Count: 0,
-        // 最高增长率和当前数据（取最新的）
-        maxGrowthRate: 0,
+        // 最高触发评分和当前数据（取最新的）
+        maxTriggerScore: 0,
+        maxTriggerScoreTimeWindow: null,
         currentDiggCount: 0,
         currentCommentCount: 0,
+        currentCollectCount: 0,
+        currentShareCount: 0,
         latestDetectionTime: null
       }
     }
@@ -704,16 +808,20 @@ const groupHotspotData = (data) => {
     else if (item.alertLevel === 2) group.level2Count++
     else if (item.alertLevel === 3) group.level3Count++
     
-    // 更新最高增长率
-    if (item.growthRate > group.maxGrowthRate) {
-      group.maxGrowthRate = item.growthRate
+    // 更新最高触发评分
+    if (item.triggerScore > group.maxTriggerScore) {
+      group.maxTriggerScore = item.triggerScore
+      group.maxTriggerScoreTimeWindow = item.timeWindow
     }
+    
     
     // 更新最新的提醒（用于显示最新数据）
     if (!group.latestAlert || new Date(item.detectionTime) > new Date(group.latestAlert.detectionTime)) {
       group.latestAlert = item
       group.currentDiggCount = item.currentDiggCount
       group.currentCommentCount = item.currentCommentCount
+      group.currentCollectCount = item.currentCollectCount
+      group.currentShareCount = item.currentShareCount
       group.latestDetectionTime = item.detectionTime
     }
   })
@@ -893,25 +1001,6 @@ const loadHotspotAlerts = async () => {
   }
 }
 
-// 手动触发检测
-const triggerDetection = async () => {
-  triggeringDetection.value = true
-  try {
-    const response = await hotspotApi.triggerDetection()
-    if (response.code === 200) {
-      ElMessage.success('检测已触发，请稍后查看结果')
-      setTimeout(() => {
-        loadHotspotAlerts()
-      }, 3000)
-    } else {
-      ElMessage.error(response.message || '触发检测失败')
-    }
-  } catch (error) {
-    ElMessage.error('触发检测失败')
-  } finally {
-    triggeringDetection.value = false
-  }
-}
 
 // 查看视频统计
 const viewStats = (awemeId) => {
@@ -1050,6 +1139,52 @@ const initDefaultDate = () => {
   }
 }
 
+// 跳转到监控列表并搜索指定视频ID
+const goToMonitor = (awemeId) => {
+  if (awemeId) {
+    // 保存当前页面状态到URL参数中
+    const currentQuery = {
+      ...route.query,
+      // 保存筛选和搜索状态
+      searchKeyword: searchKeyword.value || undefined,
+      alertLevel: alertLevel.value || undefined,
+      timeWindow: timeWindow.value || undefined,
+      triggerMetric: triggerMetric.value || undefined,
+      startTime: startTime.value || undefined,
+      endTime: endTime.value || undefined,
+      currentFilter: currentFilter.value !== 'all' ? currentFilter.value : undefined
+    }
+    
+    // 移除undefined值
+    Object.keys(currentQuery).forEach(key => {
+      if (currentQuery[key] === undefined) {
+        delete currentQuery[key]
+      }
+    })
+    
+    // 使用replace更新当前路由的query参数，这样返回时能恢复状态
+    router.replace({ path: route.path, query: currentQuery }).then(() => {
+      // 跳转到监控列表，传递音乐ID和视频ID搜索
+      const targetQuery = {
+        searchKeyword: awemeId,
+        from: 'hotspot' // 添加来源标识
+      }
+      
+      // 如果有音乐ID，也传递过去
+      if (currentMusicId.value) {
+        targetQuery.musicId = currentMusicId.value
+      }
+      
+      router.push({ 
+        path: '/monitor', 
+        query: targetQuery
+      })
+    })
+  } else {
+    ElMessage.warning('视频ID无效')
+  }
+}
+
 onMounted(async () => {
   // 初始化默认日期
   initDefaultDate()
@@ -1169,9 +1304,8 @@ onMounted(async () => {
 }
 
 .page-header {
-  margin-bottom: 24px;
-  padding: 20px 0;
-  border-bottom: 1px solid #e6e8eb;
+  margin-bottom: 20px;
+  padding: 16px 0;
 }
 
 .page-title {
@@ -1198,8 +1332,8 @@ onMounted(async () => {
 .stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
-  margin: 20px 0 16px;
+  gap: 16px;
+  margin: 16px 0 20px;
 }
 
 .stat-card {
@@ -1266,26 +1400,69 @@ onMounted(async () => {
   margin-top: 4px;
 }
 
-.section-divider {
-  height: 1px;
-  background: #eceff5;
-  margin: 4px 0 10px;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding: 16px 20px;
+/* 新的筛选区域样式 */
+.filter-section {
   background: #fff;
   border-radius: 12px;
   border: 1px solid #e6e8eb;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.toolbar-left {
+.filter-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.nav-controls {
   display: flex;
   gap: 12px;
+  align-items: center;
+}
+
+.search-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.filter-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.date-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.date-separator {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 4px;
 }
 
 .hotspot-table-card {
@@ -1396,7 +1573,7 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.current-stats {
+.stats-preview {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -1592,6 +1769,53 @@ onMounted(async () => {
   font-weight: 500;
 }
 
+/* 触发评分样式 */
+.trigger-score .score-text {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.score-high {
+  color: #ef4444; /* 红色：高热度 */
+  background-color: rgba(239, 68, 68, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.score-medium {
+  color: #f59e0b; /* 黄色：中等热度 */
+  background-color: rgba(245, 158, 11, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.score-low {
+  color: #10b981; /* 绿色：低热度 */
+  background-color: rgba(16, 185, 129, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+
+/* 展开表格中的增长详情样式 */
+.growth-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.growth-detail .growth-rate {
+  font-size: 11px;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+.growth-detail .growth-count {
+  font-size: 10px;
+  color: #6b7280;
+}
+
 .expand-actions {
   display: flex;
   gap: 4px;
@@ -1612,5 +1836,49 @@ onMounted(async () => {
 
 :deep(.el-table__expand-icon--expanded) {
   color: #3b82f6;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .filter-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .filter-group {
+    flex-wrap: wrap;
+  }
+  
+  .date-group {
+    align-self: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .filter-top {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .nav-controls {
+    justify-content: center;
+  }
+  
+  .search-controls {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .search-controls .el-input {
+    width: 100% !important;
+    max-width: 300px;
+  }
+  
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
 }
 </style>
