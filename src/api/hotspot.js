@@ -64,10 +64,11 @@ export const hotspotApi = {
   },
 
   // 获取全局热度提醒统计
-  getGlobalStatistics() {
+  getGlobalStatistics(params = {}) {
     return request({
       url: '/hotspot-alert/statistics',
-      method: 'get'
+      method: 'get',
+      params
     })
   },
 

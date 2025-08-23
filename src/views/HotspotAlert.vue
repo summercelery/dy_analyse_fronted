@@ -58,7 +58,7 @@
         </div>
 
         <!-- 统计卡片 -->
-        <div v-if="currentMusicId" class="stats-row">
+        <div class="stats-row">
           <div class="stat-card total" :class="{ 'is-active': currentFilter === 'all' }" @click="filterAlerts('all')">
             <div class="stat-icon">
               <el-icon size="20"><Bell /></el-icon>
@@ -289,7 +289,7 @@
                         <template #default="{ row: alert }">
                           <div class="growth-detail">
                             <div class="growth-rate">+{{ formatGrowthRate(alert.diggGrowthRate) }}%</div>
-                            <div class="growth-count">{{ formatNumber(alert.currentDiggCount || 0) }}</div>
+                            <div class="growth-count">+{{ formatNumber(calculateGrowth(alert.currentDiggCount, alert.baselineDiggCount)) }}</div>
                           </div>
                         </template>
                       </el-table-column>
@@ -298,7 +298,7 @@
                         <template #default="{ row: alert }">
                           <div class="growth-detail">
                             <div class="growth-rate">+{{ formatGrowthRate(alert.commentGrowthRate) }}%</div>
-                            <div class="growth-count">{{ formatNumber(alert.currentCommentCount || 0) }}</div>
+                            <div class="growth-count">+{{ formatNumber(calculateGrowth(alert.currentCommentCount, alert.baselineCommentCount)) }}</div>
                           </div>
                         </template>
                       </el-table-column>
@@ -307,7 +307,7 @@
                         <template #default="{ row: alert }">
                           <div class="growth-detail">
                             <div class="growth-rate">+{{ formatGrowthRate(alert.collectGrowthRate) }}%</div>
-                            <div class="growth-count">{{ formatNumber(alert.currentCollectCount || 0) }}</div>
+                            <div class="growth-count">+{{ formatNumber(calculateGrowth(alert.currentCollectCount, alert.baselineCollectCount)) }}</div>
                           </div>
                         </template>
                       </el-table-column>
@@ -316,7 +316,7 @@
                         <template #default="{ row: alert }">
                           <div class="growth-detail">
                             <div class="growth-rate">+{{ formatGrowthRate(alert.shareGrowthRate) }}%</div>
-                            <div class="growth-count">{{ formatNumber(alert.currentShareCount || 0) }}</div>
+                            <div class="growth-count">+{{ formatNumber(calculateGrowth(alert.currentShareCount, alert.baselineShareCount)) }}</div>
                           </div>
                         </template>
                       </el-table-column>
@@ -438,7 +438,7 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="当前数据" width="130">
+              <el-table-column label="预警数据" width="130">
                 <template #default="{ row }">
                   <div class="stats-preview">
                     <div class="stats-item">
@@ -447,11 +447,11 @@
                           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                         </svg>
                       </div>
-                      <span>{{ formatNumber(row.currentDiggCount || 0) }}</span>
+                      <span>{{ formatNumber(row.latestAlertDiggCount || 0) }}</span>
                     </div>
                     <div class="stats-item">
                       <el-icon size="14"><ChatDotRound /></el-icon>
-                      <span>{{ formatNumber(row.currentCommentCount || 0) }}</span>
+                      <span>{{ formatNumber(row.latestAlertCommentCount || 0) }}</span>
                     </div>
                   </div>
                 </template>
@@ -730,6 +730,13 @@ const formatTriggerScore = (score) => {
   return Math.round(score * 100) / 100
 }
 
+const calculateGrowth = (currentCount, baselineCount) => {
+  if (!currentCount && !baselineCount) return 0
+  if (!baselineCount) return currentCount || 0
+  if (!currentCount) return 0
+  return (currentCount || 0) - (baselineCount || 0)
+}
+
 const getTriggerScoreClass = (score, timeWindow) => {
   if (!score) return 'score-low'
   
@@ -795,6 +802,8 @@ const groupHotspotData = (data) => {
         currentCommentCount: 0,
         currentCollectCount: 0,
         currentShareCount: 0,
+        latestAlertDiggCount: 0,
+        latestAlertCommentCount: 0,
         latestDetectionTime: null
       }
     }
@@ -822,6 +831,8 @@ const groupHotspotData = (data) => {
       group.currentCommentCount = item.currentCommentCount
       group.currentCollectCount = item.currentCollectCount
       group.currentShareCount = item.currentShareCount
+      group.latestAlertDiggCount = item.currentDiggCount
+      group.latestAlertCommentCount = item.currentCommentCount
       group.latestDetectionTime = item.detectionTime
     }
   })
@@ -841,20 +852,31 @@ const handleSearch = () => {
 
 // 筛选处理函数
 const handleFilterChange = () => {
+  loadStatistics()
   loadHotspotAlerts()
 }
 
 // 加载统计数据
 const loadStatistics = async () => {
   try {
-    let response
-    if (currentMusicId.value) {
-      // 获取音乐维度的统计
-      response = await hotspotApi.getMusicStatistics(currentMusicId.value)
-    } else {
-      // 获取全局统计
-      response = await hotspotApi.getGlobalStatistics()
+    // 统一使用 /api/hotspot-alert/statistics 接口
+    const params = {}
+    
+    // 添加时间范围参数
+    if (startTime.value) {
+      params.startTime = startTime.value + ' 00:00:00'
     }
+    if (endTime.value) {
+      params.endTime = endTime.value + ' 23:59:59'
+    }
+    
+    // 如果有音乐ID，添加到参数中
+    if (currentMusicId.value) {
+      params.musicId = currentMusicId.value
+    }
+    
+    console.log('统计接口调用参数:', params)
+    const response = await hotspotApi.getGlobalStatistics(params)
     
     if (response.code === 200) {
       statistics.value = response.data
@@ -1080,13 +1102,32 @@ const handleSelectionChange = (selection) => {
 // 批量删除
 const batchDelete = async () => {
   try {
-    await ElMessageBox.confirm(`确认批量删除选中的 ${selectedRows.value.length} 个热度提醒？`, '警告', {
+    // 计算总共要删除的热度提醒记录数
+    const totalAlerts = selectedRows.value.reduce((sum, row) => sum + (row.alerts?.length || 0), 0)
+    
+    await ElMessageBox.confirm(`确认批量删除选中的 ${selectedRows.value.length} 个视频的 ${totalAlerts} 条热度提醒？`, '警告', {
       type: 'warning',
       confirmButtonText: '确认删除',
       cancelButtonText: '取消'
     })
     
-    const ids = selectedRows.value.map(row => row.id)
+    // 收集所有要删除的热度提醒记录ID
+    const ids = []
+    selectedRows.value.forEach(row => {
+      if (row.alerts && Array.isArray(row.alerts)) {
+        row.alerts.forEach(alert => {
+          if (alert.id) {
+            ids.push(alert.id)
+          }
+        })
+      }
+    })
+    
+    if (ids.length === 0) {
+      ElMessage.warning('没有找到有效的热度提醒记录ID')
+      return
+    }
+    
     const response = await hotspotApi.batchDeleteAlerts(ids)
     if (response.code === 200) {
       ElMessage.success('批量删除成功')
@@ -1228,6 +1269,8 @@ onMounted(async () => {
     endTime.value = route.query.endTime
   }
   
+  // 加载统计数据
+  await loadStatistics()
   await loadHotspotAlerts()
 })
 </script>

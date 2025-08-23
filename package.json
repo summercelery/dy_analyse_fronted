@@ -6,7 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "start": "node server.js",
+    "prod": "npm run build && npm start"
   },
   "dependencies": {
     "vue": "^3.3.4",
@@ -16,7 +18,9 @@
     "element-plus": "^2.3.9",
     "@element-plus/icons-vue": "^2.1.0",
     "echarts": "^5.4.3",
-    "vue-echarts": "^6.6.1"
+    "vue-echarts": "^6.6.1",
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.3.4",
