@@ -81,7 +81,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ statistics.totalCount }}</div>
-              <div class="stat-label">监控视频总数</div>
+              <div class="stat-label">当前监控视频</div>
             </div>
           </div>
           
@@ -123,7 +123,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ statistics.autoCount }}</div>
-              <div class="stat-label">自动添加</div>
+              <div class="stat-label">自选视频</div>
             </div>
           </div>
           
@@ -988,6 +988,42 @@
       </template>
     </el-dialog>
 
+    <!-- 播主信息对话框 -->
+    <el-dialog
+      v-model="showAuthorDialog"
+      title="播主信息"
+      width="600px"
+      :close-on-click-modal="false"
+    >
+      <div v-loading="authorLoading">
+        <div v-if="currentAuthor" class="author-info-dialog">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="用户ID">{{ currentAuthor.userId }}</el-descriptions-item>
+            <el-descriptions-item label="昵称">{{ currentAuthor.nickname }}</el-descriptions-item>
+            <el-descriptions-item label="粉丝">{{ formatAuthorNumber(currentAuthor.followerCount) }}</el-descriptions-item>
+            <el-descriptions-item label="获赞">{{ formatAuthorNumber(currentAuthor.totalFavorited) }}</el-descriptions-item>
+            <el-descriptions-item label="性别">{{ currentAuthor.gender || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="地区">{{ currentAuthor.ipLocation || '-' }}</el-descriptions-item>
+            <el-descriptions-item v-if="currentAuthor.userUrl" label="播主地址" :span="2">
+              <el-link 
+                type="primary" 
+                :href="currentAuthor.userUrl" 
+                target="_blank"
+                class="author-link"
+              >
+                {{ currentAuthor.userUrl }}
+              </el-link>
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
+        <el-empty v-else-if="!authorLoading" description="暂无播主信息" />
+      </div>
+      
+      <template #footer>
+        <el-button @click="closeAuthorDialog">关闭</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 更新邮箱对话框 -->
     <el-dialog
       v-model="showUpdateEmailDialog"
@@ -1162,6 +1198,11 @@ const selectedStats = ref({
   collects: true,
   shares: true
 })
+
+// 播主信息对话框相关数据
+const showAuthorDialog = ref(false)
+const authorLoading = ref(false)
+const currentAuthor = ref(null)
 
 
 
@@ -1474,10 +1515,10 @@ const filterVideos = (filterType) => {
   loadMonitorVideos(1) // 重新加载数据
   
   const filterMessages = {
-    'all': '已显示所有监控视频',
+    'all': '已显示当前监控视频',
     'manual': '已过滤显示手动添加的视频',
     'error': '已过滤显示异常监控的视频',
-    'auto': '已过滤显示自动添加的视频'
+    'auto': '已过滤显示自选视频'
   }
   
   ElMessage.success(filterMessages[filterType] || '过滤完成')
@@ -1643,7 +1684,7 @@ const loadMonitorVideos = async (page = 1) => {
     if (currentFilter.value === 'manual') {
       params.type = 1
     } else if (currentFilter.value === 'auto') {
-      params.type = 0
+      params.joinCustomType = 1
     }
     
     // 添加状态筛选
@@ -1651,7 +1692,7 @@ const loadMonitorVideos = async (page = 1) => {
       // 异常监控：后端API中status=0表示所有异常状态
       params.status = 0
     } else if (currentFilter.value === 'all') {
-      // 监控视频总数：只显示正常状态的视频
+      // 当前监控视频：只显示正常状态的视频
       params.status = 1
     }
     
@@ -2470,6 +2511,39 @@ const closeStatsDialog = () => {
   }
 }
 
+// 播主信息相关函数
+const formatAuthorNumber = (num) => {
+  if (!num) return '0'
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + 'w'
+  }
+  return num.toString()
+}
+
+const loadAuthorInfo = async (userId) => {
+  authorLoading.value = true
+  try {
+    const response = await authorApi.getAuthorInfo(userId)
+    if (response.code === 200) {
+      currentAuthor.value = response.data
+    } else {
+      ElMessage.error('获取播主信息失败')
+      currentAuthor.value = null
+    }
+  } catch (error) {
+    console.error('获取播主信息失败:', error)
+    ElMessage.error('获取播主信息失败')
+    currentAuthor.value = null
+  } finally {
+    authorLoading.value = false
+  }
+}
+
+const closeAuthorDialog = () => {
+  showAuthorDialog.value = false
+  currentAuthor.value = null
+}
+
 const clearMusicFilter = () => {
   currentMusicId.value = null
   ElMessage.success('已清除音乐过滤')
@@ -2499,7 +2573,8 @@ const goBackFromMusic = () => {
 const goToAuthor = (row) => {
   const userId = row?.videoInfo?.authorId || row?.authorInfo?.authorId
   if (userId) {
-    router.push(`/author/${userId}`)
+    showAuthorDialog.value = true
+    loadAuthorInfo(userId)
   } else {
     ElMessage.warning('无法获取播主ID')
   }
@@ -3645,6 +3720,30 @@ onUnmounted(() => {
   justify-content: center;
   color: #ffffff;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+/* 播主信息对话框样式 */
+.author-info-dialog {
+  padding: 0;
+}
+
+.author-info-dialog .el-descriptions {
+  margin-top: 0;
+}
+
+.author-info-dialog .author-link {
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+:deep(.author-info-dialog .el-descriptions__label) {
+  font-weight: 600;
+  color: #374151;
+  background-color: #f9fafb;
+}
+
+:deep(.author-info-dialog .el-descriptions__content) {
+  color: #111827;
 }
 
 
