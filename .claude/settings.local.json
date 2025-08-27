@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(rm:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Read(C:\\Users\\46518\\Desktop\\douyin\\dyAnalyse/**)"
     ],
     "deny": [],
     "ask": [],

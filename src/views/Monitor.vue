@@ -95,7 +95,21 @@
             </div>
             <div class="stat-info">
               <div class="stat-value">{{ statistics.hotspotAlertCount || 0 }}</div>
-              <div class="stat-label">热度异动</div>
+              <div class="stat-label">72H热度异动</div>
+            </div>
+          </div>
+          
+          <div 
+            class="stat-card auto"
+            :class="{ 'is-active': currentFilter === 'auto' && !showHotspotFilter }"
+            @click="filterVideos('auto')"
+          >
+            <div class="stat-icon">
+              <el-icon size="20" color="#10b981"><Star /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ statistics.autoCount }}</div>
+              <div class="stat-label">自选视频</div>
             </div>
           </div>
           
@@ -110,20 +124,6 @@
             <div class="stat-info">
               <div class="stat-value">{{ statistics.manualCount }}</div>
               <div class="stat-label">手动添加</div>
-            </div>
-          </div>
-          
-          <div 
-            class="stat-card auto"
-            :class="{ 'is-active': currentFilter === 'auto' && !showHotspotFilter }"
-            @click="filterVideos('auto')"
-          >
-            <div class="stat-icon">
-              <el-icon size="20"><Cpu /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-value">{{ statistics.autoCount }}</div>
-              <div class="stat-label">自选视频</div>
             </div>
           </div>
           
@@ -348,16 +348,56 @@
               <el-table-column label="视频ID" width="140">
                 <template #default="{ row }">
                   <div class="video-id">
-                    <el-link 
-                      v-if="row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId"
-                      :href="`https://www.douyin.com/video/${row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId}`" 
-                      target="_blank"
-                      type="primary"
-                      class="video-id-link"
+                    <div 
+                      v-if="isRecentHotspotAlert(row)"
+                      class="hotspot-video-container"
                     >
-                      {{ row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId || 'N/A' }}
-                    </el-link>
-                    <span v-else>{{ row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId || 'N/A' }}</span>
+                      <el-icon class="hotspot-video-icon" size="12"><TrendCharts /></el-icon>
+                      <el-link 
+                        v-if="row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId"
+                        :href="`https://www.douyin.com/video/${row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId}`" 
+                        target="_blank"
+                        type="primary"
+                        class="video-id-link hotspot-video-id"
+                      >
+                        {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
+                      </el-link>
+                      <span v-else class="video-id-text hotspot-video-id">
+                        {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
+                      </span>
+                    </div>
+                    <div 
+                      v-else-if="row.monitorVideo?.joinCustomType === 1"
+                      class="custom-video-container"
+                    >
+                      <el-icon class="custom-video-icon" size="12"><Star /></el-icon>
+                      <el-link 
+                        v-if="row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId"
+                        :href="`https://www.douyin.com/video/${row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId}`" 
+                        target="_blank"
+                        type="primary"
+                        class="video-id-link custom-video-id"
+                      >
+                        {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
+                      </el-link>
+                      <span v-else class="video-id-text custom-video-id">
+                        {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
+                      </span>
+                    </div>
+                    <template v-else>
+                      <el-link 
+                        v-if="row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId"
+                        :href="`https://www.douyin.com/video/${row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId}`" 
+                        target="_blank"
+                        type="primary"
+                        class="video-id-link"
+                      >
+                        {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
+                      </el-link>
+                      <span v-else class="video-id-text">
+                        {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
+                      </span>
+                    </template>
                   </div>
                   <!-- 调试信息 -->
                   <div v-if="false" style="font-size: 10px; color: #999;">
@@ -365,7 +405,8 @@
                       awemeId: row.monitorVideo?.awemeId,
                       id: row.monitorVideo?.id,
                       rowAwemeId: row.awemeId,
-                      workUrl: row.monitorVideo?.workUrl
+                      workUrl: row.monitorVideo?.workUrl,
+                      joinCustomType: row.monitorVideo?.joinCustomType
                     }) }}
                   </div>
                 </template>
@@ -435,65 +476,124 @@
                 </template>
               </el-table-column>
               
-              <el-table-column 
-                label="搜索标签" 
-                width="120"
-              >
-                <template #default="{ row }">
-                  <div v-if="getSearchTags(row).length > 0" class="search-tag-list">
-                    <el-tag
-                      v-for="tag in getSearchTags(row).slice(0, 3)"
-                      :key="tag"
-                      size="small"
-                      type="success"
-                      class="search-tag"
-                      @click="selectSearchTag(tag)"
-                    >
-                      {{ tag }}
-                    </el-tag>
-                    <el-tooltip 
-                      v-if="getSearchTags(row).length > 3"
-                      :content="getSearchTags(row).slice(3).join('、')"
-                      placement="top"
-                    >
-                      <el-tag size="small" type="success" class="search-tag-more">
-                        +{{ getSearchTags(row).length - 3 }}
-                      </el-tag>
-                    </el-tooltip>
-                  </div>
-                  <span v-else class="na-text">无搜索标签</span>
-                </template>
-              </el-table-column>
+              <!-- 当开启72H热度异动筛选时显示最后提醒时间 -->
+              <template v-if="showHotspotFilter">
+                <el-table-column 
+                  label="最后提醒时间" 
+                  width="160"
+                  align="center"
+                >
+                  <template #default="{ row }">
+                    <div class="latest-alert-time">
+                      <span v-if="row.monitorVideo?.latestHotspotAlertTime" class="alert-time">
+                        {{ formatPublishTime(row.monitorVideo.latestHotspotAlertTime) }}
+                      </span>
+                      <span v-else class="na-text">无提醒记录</span>
+                    </div>
+                  </template>
+                </el-table-column>
+              </template>
               
-              <el-table-column 
-                label="搜索类型" 
-                width="100"
-              >
-                <template #default="{ row }">
-                  <div v-if="getSearchChannels(row).length > 0" class="search-channel-list">
-                    <el-tag
-                      v-for="channel in getSearchChannels(row).slice(0, 3)"
-                      :key="channel"
-                      size="small"
-                      type="warning"
-                      class="search-channel"
-                      @click="selectSearchChannel(channel)"
-                    >
-                      {{ channel }}
-                    </el-tag>
-                    <el-tooltip 
-                      v-if="getSearchChannels(row).length > 3"
-                      :content="getSearchChannels(row).slice(3).join('、')"
-                      placement="top"
-                    >
-                      <el-tag size="small" type="warning" class="search-channel-more">
-                        +{{ getSearchChannels(row).length - 3 }}
+              <!-- 当筛选自选视频时显示视频备注和投资总金额 -->
+              <template v-else-if="currentFilter === 'auto'">
+                <el-table-column 
+                  label="视频备注" 
+                  width="150"
+                >
+                  <template #default="{ row }">
+                    <div class="video-remark">
+                      <el-tooltip 
+                        v-if="row.monitorVideo?.remark"
+                        :content="row.monitorVideo.remark"
+                        placement="top"
+                        :show-after="500"
+                      >
+                        <span class="remark-text">{{ row.monitorVideo.remark }}</span>
+                      </el-tooltip>
+                      <span v-else class="na-text">无备注</span>
+                    </div>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column 
+                  label="投资总金额" 
+                  width="120"
+                  align="right"
+                >
+                  <template #default="{ row }">
+                    <div class="total-investment">
+                      <span v-if="row.monitorVideo?.totalInvestmentAmount && row.monitorVideo.totalInvestmentAmount > 0" 
+                            class="investment-amount">
+                        ¥{{ formatInvestmentAmount(row.monitorVideo.totalInvestmentAmount) }}
+                      </span>
+                      <span v-else class="na-text">-</span>
+                    </div>
+                  </template>
+                </el-table-column>
+              </template>
+              
+              <!-- 当筛选其他类型时显示搜索标签和搜索类型 -->
+              <template v-else>
+                <el-table-column 
+                  label="搜索标签" 
+                  width="120"
+                >
+                  <template #default="{ row }">
+                    <div v-if="getSearchTags(row).length > 0" class="search-tag-list">
+                      <el-tag
+                        v-for="tag in getSearchTags(row).slice(0, 3)"
+                        :key="tag"
+                        size="small"
+                        type="success"
+                        class="search-tag"
+                        @click="selectSearchTag(tag)"
+                      >
+                        {{ tag }}
                       </el-tag>
-                    </el-tooltip>
-                  </div>
-                  <span v-else class="na-text">无搜索类型</span>
-                </template>
-              </el-table-column>
+                      <el-tooltip 
+                        v-if="getSearchTags(row).length > 3"
+                        :content="getSearchTags(row).slice(3).join('、')"
+                        placement="top"
+                      >
+                        <el-tag size="small" type="success" class="search-tag-more">
+                          +{{ getSearchTags(row).length - 3 }}
+                        </el-tag>
+                      </el-tooltip>
+                    </div>
+                    <span v-else class="na-text">无搜索标签</span>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column 
+                  label="搜索类型" 
+                  width="100"
+                >
+                  <template #default="{ row }">
+                    <div v-if="getSearchChannels(row).length > 0" class="search-channel-list">
+                      <el-tag
+                        v-for="channel in getSearchChannels(row).slice(0, 3)"
+                        :key="channel"
+                        size="small"
+                        type="warning"
+                        class="search-channel"
+                        @click="selectSearchChannel(channel)"
+                      >
+                        {{ channel }}
+                      </el-tag>
+                      <el-tooltip 
+                        v-if="getSearchChannels(row).length > 3"
+                        :content="getSearchChannels(row).slice(3).join('、')"
+                        placement="top"
+                      >
+                        <el-tag size="small" type="warning" class="search-channel-more">
+                          +{{ getSearchChannels(row).length - 3 }}
+                        </el-tag>
+                      </el-tooltip>
+                    </div>
+                    <span v-else class="na-text">无搜索类型</span>
+                  </template>
+                </el-table-column>
+              </template>
               
               <el-table-column label="最新数据" width="130">
                 <template #default="{ row }">
@@ -526,7 +626,7 @@
               <el-table-column label="创建时间" width="150" align="center">
                 <template #default="{ row }">
                   <div class="create-time">
-                    {{ formatDate(row.monitorVideo?.createTime) }}
+                    {{ formatPublishTime(row.monitorVideo?.createTime) }}
                   </div>
                 </template>
               </el-table-column>
@@ -543,7 +643,7 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="操作" width="160" fixed="right">
+              <el-table-column label="操作" width="200" fixed="right">
                 <template #default="{ row }">
                   <div class="table-actions">
                     <el-tooltip content="查看统计" placement="top">
@@ -566,6 +666,16 @@
                       >
                         {{ row.monitorVideo?.status === 1 ? '停用' : '启用' }}
                       </el-button>
+                    </el-tooltip>
+                    
+                    <el-tooltip :content="row.monitorVideo?.joinCustomType === 1 ? '更新自选' : '加入自选'" placement="top">
+                      <el-button 
+                        type="success" 
+                        size="small" 
+                        :icon="Collection"
+                        @click="openCustomSelectionDialog(row)"
+                        link
+                      />
                     </el-tooltip>
                     
                     <el-tooltip content="删除监控" placement="top">
@@ -1024,6 +1134,130 @@
       </template>
     </el-dialog>
 
+    <!-- 加入自选对话框 -->
+    <el-dialog
+      v-model="showCustomDialog"
+      :title="currentMonitorVideo?.monitorVideo?.joinCustomType === 1 ? '更新自选' : '加入自选'"
+      width="700px"
+      :close-on-click-modal="false"
+    >
+      <div class="custom-selection-content">
+        <div class="video-info-section" v-if="currentMonitorVideo">
+          <h4>视频信息</h4>
+          <el-descriptions :column="2" border size="small">
+            <el-descriptions-item label="视频ID">{{ currentMonitorVideo.monitorVideo?.awemeId }}</el-descriptions-item>
+            <el-descriptions-item label="播主">{{ currentMonitorVideo.authorInfo?.nickname || currentMonitorVideo.videoInfo?.authorId }}</el-descriptions-item>
+            <el-descriptions-item label="视频标题" :span="2">
+              <div class="video-title">
+                {{ getCleanDescription(currentMonitorVideo) || '暂无标题' }}
+              </div>
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <div class="description-section">
+          <h4>视频备注</h4>
+          <el-form-item>
+            <el-input
+              v-model="investmentForm.description"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入视频备注（可选）"
+              maxlength="200"
+              show-word-limit
+            />
+          </el-form-item>
+        </div>
+
+        <div class="investment-section">
+          <h4>投资记录</h4>
+          <div v-if="investmentRecordsLoading" class="loading-tip">
+            <el-icon class="rotating"><Loading /></el-icon>
+            <span>正在加载投资记录...</span>
+          </div>
+          <template v-else>
+            <!-- 如果有投资记录，显示投资记录列表 -->
+            <div v-if="investmentForm.amounts.length > 0">
+              <div v-for="(item, index) in investmentForm.amounts" :key="index" class="investment-item">
+            <div class="investment-row">
+              <el-form-item label="投资金额" class="amount-input">
+                <el-input-number
+                  v-model="item.amount"
+                  :min="0"
+                  :step="100"
+                  :precision="2"
+                  placeholder="请输入投资金额"
+                  style="width: 100%"
+                />
+              </el-form-item>
+              
+              <el-form-item label="投资时间" class="time-input">
+                <el-date-picker
+                  v-model="item.investmentTime"
+                  type="datetime"
+                  placeholder="选择投资时间"
+                  format="YYYY-MM-DD HH:mm"
+                  value-format="YYYY-MM-DDTHH:mm"
+                  style="width: 100%"
+                />
+              </el-form-item>
+              
+              <div class="action-buttons">
+                <el-button
+                  v-if="index === investmentForm.amounts.length - 1"
+                  type="primary"
+                  size="small"
+                  :icon="Plus"
+                  @click="addInvestmentAmount"
+                  circle
+                />
+                <el-button
+                  type="danger"
+                  size="small"
+                  :icon="Delete"
+                  @click="removeInvestmentAmount(index)"
+                  circle
+                />
+              </div>
+              </div>
+              </div>
+            </div>
+            
+            <!-- 如果没有投资记录，显示添加按钮 -->
+            <div v-else class="no-investment-records">
+              <el-button 
+                type="primary" 
+                :icon="Plus" 
+                @click="addFirstInvestmentAmount"
+                class="add-investment-btn"
+              >
+                添加投资记录
+              </el-button>
+            </div>
+          </template>
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button @click="closeCustomDialog">取消</el-button>
+        <el-button 
+          v-if="currentMonitorVideo?.monitorVideo?.joinCustomType === 1"
+          type="danger" 
+          @click="cancelCustomSelection" 
+          :loading="customSelectionLoading"
+        >
+          取消自选
+        </el-button>
+        <el-button 
+          type="primary" 
+          @click="submitCustomSelection" 
+          :loading="customSelectionLoading"
+        >
+          {{ currentMonitorVideo?.monitorVideo?.joinCustomType === 1 ? '确认更新' : '确认加入' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 更新邮箱对话框 -->
     <el-dialog
       v-model="showUpdateEmailDialog"
@@ -1084,7 +1318,8 @@ import {
   MagicStick,
   Cpu,
   TrendCharts,
-  Share
+  Share,
+  Star
 } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -1204,6 +1439,22 @@ const showAuthorDialog = ref(false)
 const authorLoading = ref(false)
 const currentAuthor = ref(null)
 
+// 加入自选对话框相关数据
+const showCustomDialog = ref(false)
+const customSelectionLoading = ref(false)
+const investmentRecordsLoading = ref(false)
+const currentMonitorVideo = ref(null)
+const investmentForm = ref({
+  description: '', // 视频描述
+  amounts: [
+    {
+      id: null,
+      amount: null,
+      investmentTime: '' // 初始化时先设为空，在实际使用时再设置北京时间
+    }
+  ]
+})
+
 
 
 // 分页处理函数
@@ -1233,34 +1484,18 @@ const toggleHotspotFilter = () => {
     startTime.value = ''
     endTime.value = ''
   } else {
-    // 开启时设置默认时间
-    if (!startTime.value) {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const year = today.getFullYear()
-      const month = String(today.getMonth() + 1).padStart(2, '0')
-      const day = String(today.getDate()).padStart(2, '0')
-      const hours = String(today.getHours()).padStart(2, '0')
-      const minutes = String(today.getMinutes()).padStart(2, '0')
-      const seconds = String(today.getSeconds()).padStart(2, '0')
-      startTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-    }
-    if (!endTime.value) {
-      const today = new Date()
-      today.setHours(23, 59, 59, 0)
-      const year = today.getFullYear()
-      const month = String(today.getMonth() + 1).padStart(2, '0')
-      const day = String(today.getDate()).padStart(2, '0')
-      const hours = String(today.getHours()).padStart(2, '0')
-      const minutes = String(today.getMinutes()).padStart(2, '0')
-      const seconds = String(today.getSeconds()).padStart(2, '0')
-      endTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-    }
+    // 开启时设置72小时前到现在的时间（与API参数保持一致）
+    const seventyTwoHoursAgo = new Date()
+    seventyTwoHoursAgo.setTime(seventyTwoHoursAgo.getTime() - 72 * 60 * 60 * 1000)
+    startTime.value = formatToUTC8TimeString(seventyTwoHoursAgo)
+    
+    const now = new Date()
+    endTime.value = formatToUTC8TimeString(now)
   }
   // 重置到第一页并重新加载数据
   currentPage.value = 1
   loadMonitorVideos(1)
-  ElMessage.success(showHotspotFilter.value ? '已开启热度异动时间筛选' : '已关闭热度异动时间筛选')
+  ElMessage.success(showHotspotFilter.value ? '已开启72H热度异动筛选' : '已关闭72H热度异动筛选')
 }
 
 // 时间变化处理
@@ -1278,8 +1513,23 @@ const loadStatistics = async () => {
   }
   
   try {
-    const response = await monitorApi.getMonitorStatistics(currentMusicId.value)
+    // 构建统计参数，与列表查询保持一致
+    const params = {
+      musicId: currentMusicId.value
+    }
+    
+    // 默认添加时间范围参数：统一使用72小时前到现在（UTC+8）
+    const seventyTwoHoursAgo = new Date()
+    seventyTwoHoursAgo.setTime(seventyTwoHoursAgo.getTime() - 72 * 60 * 60 * 1000)
+    params.startTime = formatToUTC8TimeString(seventyTwoHoursAgo)
+    
+    // 设置当前时间为结束时间（UTC+8）
+    const now = new Date()
+    params.endTime = formatToUTC8TimeString(now)
+    
+    const response = await monitorApi.getMonitorStatistics(params)
     console.log('Monitor页面: 统计数据API响应:', response)
+    console.log('Monitor页面: 统计数据请求参数:', params)
     
     if (response.code === 200) {
       statistics.value = response.data
@@ -1617,6 +1867,90 @@ const formatFollowerCount = (count) => {
   return count.toString()
 }
 
+const formatInvestmentAmount = (amount) => {
+  if (!amount || amount <= 0) return '0.00'
+  return parseFloat(amount).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
+const getTruncatedVideoId = (videoId) => {
+  if (!videoId || videoId === 'N/A') return 'N/A'
+  return videoId.toString().length > 10 ? videoId.toString().substring(0, 10) : videoId.toString()
+}
+
+// 判断是否有72小时内的热度异动
+const isRecentHotspotAlert = (row) => {
+  const latestHotspotAlertTime = row.monitorVideo?.latestHotspotAlertTime
+  if (!latestHotspotAlertTime) return false
+  
+  try {
+    // 计算72小时前的时间戳
+    const seventyTwoHoursAgo = new Date()
+    seventyTwoHoursAgo.setTime(seventyTwoHoursAgo.getTime() - 72 * 60 * 60 * 1000)
+    
+    // 解析最后提醒时间
+    const alertTime = new Date(latestHotspotAlertTime)
+    
+    // 如果最后提醒时间大于72小时前，则认为是最近的热度异动
+    return alertTime > seventyTwoHoursAgo
+  } catch (error) {
+    console.warn('解析热度异动时间失败:', error)
+    return false
+  }
+}
+
+// UTC+8时区时间格式化函数
+const formatToUTC8TimeString = (date = new Date()) => {
+  // 转换到UTC+8时区
+  const utc8Date = new Date(date.getTime() + (8 * 60 * 60 * 1000))
+  const year = utc8Date.getUTCFullYear()
+  const month = String(utc8Date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(utc8Date.getUTCDate()).padStart(2, '0')
+  const hours = String(utc8Date.getUTCHours()).padStart(2, '0')
+  const minutes = String(utc8Date.getUTCMinutes()).padStart(2, '0')
+  const seconds = String(utc8Date.getUTCSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
+// 获取当前本地时间的格式化函数（用户本地时区）
+const getBeijingTime = () => {
+  const now = new Date()
+  // 直接使用本地时间，不做时区转换
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+// 将后端时间转换为本地时间显示格式
+const convertToBeijingTimeString = (timeString) => {
+  if (!timeString) return getBeijingTime()
+  
+  try {
+    // 直接使用后端返回的时间，只做格式转换
+    const date = new Date(timeString)
+    if (isNaN(date.getTime())) {
+      console.warn('无效的时间格式:', timeString)
+      return getBeijingTime()
+    }
+    
+    // 直接格式化为本地时间显示
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  } catch (error) {
+    console.warn('时间转换失败:', error)
+    return getBeijingTime()
+  }
+}
+
 // 根据API文档定义的状态码获取状态类型
 const getStatusType = (status) => {
   switch (status) {
@@ -1705,15 +2039,16 @@ const loadMonitorVideos = async (page = 1) => {
     params.sortBy = sortFieldMap[sortField.value] || 'create_time'
     params.sortOrder = sortOrder.value.toUpperCase()
     
-    // 添加热度异动相关参数
+    // 添加72H热度异动相关参数
     if (showHotspotFilter.value) {
-      params.todayChanged = 1
-      if (startTime.value) {
-        params.startTime = startTime.value
-      }
-      if (endTime.value) {
-        params.endTime = endTime.value
-      }
+      // 设置72小时前为开始时间（UTC+8）
+      const seventyTwoHoursAgo = new Date()
+      seventyTwoHoursAgo.setTime(seventyTwoHoursAgo.getTime() - 72 * 60 * 60 * 1000)
+      params.startTime = formatToUTC8TimeString(seventyTwoHoursAgo)
+      
+      // 设置当前时间为结束时间（UTC+8）
+      const now = new Date()
+      params.endTime = formatToUTC8TimeString(now)
     }
     
     console.log('Monitor页面: 查询参数:', params)
@@ -1746,7 +2081,11 @@ const loadMonitorVideos = async (page = 1) => {
           createTime: item.createTime,
           videoPublishTime: item.videoPublishTime, // 保持原始时间戳格式
           tag: item.searchTags,
-          channel: item.searchChannel
+          channel: item.searchChannel,
+          remark: item.remark, // 添加视频备注字段
+          totalInvestmentAmount: item.totalInvestmentAmount, // 添加投资总金额字段
+          joinCustomType: item.joinCustomType, // 添加自选类型字段
+          latestHotspotAlertTime: item.latestHotspotAlertTime // 添加最后提醒时间字段
         },
         videoInfo: {
           desc: item.videoDescription,
@@ -2544,6 +2883,187 @@ const closeAuthorDialog = () => {
   currentAuthor.value = null
 }
 
+// 加入自选相关函数
+const openCustomSelectionDialog = async (row) => {
+  currentMonitorVideo.value = row
+  
+  // 先显示对话框，避免等待时间过长
+  showCustomDialog.value = true
+  
+  // 重置表单，预填充视频备注
+  investmentForm.value = {
+    description: row.monitorVideo?.remark || '',
+    amounts: [] // 初始化为空数组，等待加载投资记录
+  }
+  
+  // 异步加载投资记录
+  const awemeId = row.monitorVideo?.awemeId
+  if (awemeId) {
+    investmentRecordsLoading.value = true
+    try {
+      console.log('加载投资记录，视频ID:', awemeId)
+      const response = await monitorApi.getVideoInvestments(awemeId)
+      if (response.code === 200 && response.data && response.data.length > 0) {
+        // 将后端返回的投资记录转换为前端表单格式
+        const investmentAmounts = response.data.map(item => ({
+          id: item.id,
+          amount: item.amount,
+          investmentTime: item.investmentTime ? convertToBeijingTimeString(item.investmentTime) : getBeijingTime()
+        }))
+        
+        // 更新表单数据
+        investmentForm.value.amounts = investmentAmounts
+        console.log('成功加载投资记录:', investmentAmounts)
+      } else {
+        console.log('该视频暂无投资记录')
+      }
+    } catch (error) {
+      console.warn('加载投资记录失败:', error)
+      // 加载失败时保持默认的空记录
+    } finally {
+      investmentRecordsLoading.value = false
+    }
+  }
+}
+
+const closeCustomDialog = () => {
+  showCustomDialog.value = false
+  currentMonitorVideo.value = null
+  investmentRecordsLoading.value = false
+  investmentForm.value = {
+    description: '',
+    amounts: [
+      {
+        id: null,
+        amount: null,
+        investmentTime: getBeijingTime()
+      }
+    ]
+  }
+}
+
+const addInvestmentAmount = () => {
+  investmentForm.value.amounts.push({
+    id: null,
+    amount: null,
+    investmentTime: getBeijingTime()
+  })
+}
+
+const addFirstInvestmentAmount = () => {
+  // 添加第一条投资记录
+  investmentForm.value.amounts = [{
+    id: null,
+    amount: null,
+    investmentTime: getBeijingTime()
+  }]
+}
+
+const removeInvestmentAmount = (index) => {
+  investmentForm.value.amounts.splice(index, 1)
+}
+
+const submitCustomSelection = async () => {
+  if (!currentMonitorVideo.value?.monitorVideo?.id) {
+    ElMessage.error('监控视频ID无效')
+    return
+  }
+  
+  // 验证表单 - 视频备注可以不填，投资记录也可以不填，但不能都为空
+  const hasValidAmount = investmentForm.value.amounts.some(item => 
+    item.amount && item.amount > 0 && item.investmentTime
+  )
+  
+  const hasDescription = investmentForm.value.description && investmentForm.value.description.trim()
+  
+  // 如果既没有备注也没有投资记录，给出提示但允许提交（只要选择了加入自选）
+  if (!hasValidAmount && !hasDescription) {
+    // 只是加入自选状态，不需要必须填写备注或投资记录
+    console.log('用户选择加入自选，但未填写备注或投资记录')
+  }
+  
+  customSelectionLoading.value = true
+  
+  try {
+    const requestData = {
+      monitorVideoId: currentMonitorVideo.value.monitorVideo.id,
+      joinCustomType: 1,
+      description: investmentForm.value.description?.trim() || '',
+      investmentAmounts: investmentForm.value.amounts
+        .filter(item => item.amount && item.amount > 0 && item.investmentTime)
+        .map(item => ({
+          id: item.id,
+          amount: parseFloat(item.amount),
+          investmentTime: item.investmentTime + ':00' // 添加秒数
+        }))
+    }
+    
+    const result = await monitorApi.updateCustomSelection(requestData)
+    
+    if (result.code === 200) {
+      const isUpdate = currentMonitorVideo.value?.monitorVideo?.joinCustomType === 1
+      ElMessage.success(isUpdate ? '更新自选成功' : '加入自选成功')
+      closeCustomDialog()
+      // 刷新列表数据
+      await loadMonitorVideos(currentPage.value)
+    } else {
+      const isUpdate = currentMonitorVideo.value?.monitorVideo?.joinCustomType === 1
+      ElMessage.error(result.message || (isUpdate ? '更新自选失败' : '加入自选失败'))
+    }
+  } catch (error) {
+    console.error('加入自选失败:', error)
+    ElMessage.error('网络错误，请重试')
+  } finally {
+    customSelectionLoading.value = false
+  }
+}
+
+const cancelCustomSelection = async () => {
+  if (!currentMonitorVideo.value?.monitorVideo?.id) {
+    ElMessage.error('监控视频ID无效')
+    return
+  }
+  
+  try {
+    await ElMessageBox.confirm(
+      '确定要取消该视频的自选状态吗？',
+      '确认取消',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    customSelectionLoading.value = true
+    
+    const requestData = {
+      monitorVideoId: currentMonitorVideo.value.monitorVideo.id,
+      joinCustomType: 0,
+      description: '',
+      investmentAmounts: []
+    }
+    
+    const result = await monitorApi.updateCustomSelection(requestData)
+    
+    if (result.code === 200) {
+      ElMessage.success('取消自选成功')
+      closeCustomDialog()
+      // 刷新列表数据
+      await loadMonitorVideos(currentPage.value)
+    } else {
+      ElMessage.error(result.message || '取消自选失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('取消自选失败:', error)
+      ElMessage.error('网络错误，请重试')
+    }
+  } finally {
+    customSelectionLoading.value = false
+  }
+}
+
 const clearMusicFilter = () => {
   currentMusicId.value = null
   ElMessage.success('已清除音乐过滤')
@@ -2873,10 +3393,28 @@ onUnmounted(() => {
 .stat-card.hotspot .stat-icon {
   background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  transition: all 0.3s ease;
+}
+
+.stat-card.hotspot .stat-icon .el-icon {
+  color: #ffffff !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  font-weight: bold;
+}
+
+.stat-card.hotspot:hover .stat-icon {
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  transform: scale(1.05);
+}
+
+.stat-card.hotspot:hover .stat-icon .el-icon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
 }
 
 .stat-card.manual .stat-icon {
-  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  background: linear-gradient(135deg, #6366f1 0%, #8b8df5 100%);
   color: #fff;
 }
 
@@ -2892,13 +3430,43 @@ onUnmounted(() => {
 }
 
 .stat-card.auto .stat-icon {
-  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  transition: all 0.3s ease;
+}
+
+.stat-card.auto .stat-icon .el-icon {
+  color: #ffffff !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  font-weight: bold;
+}
+
+.stat-card.auto:hover .stat-icon {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  transform: scale(1.05);
+}
+
+.stat-card.auto:hover .stat-icon .el-icon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
 }
 
 .stat-card.is-active {
   border: 2px solid rgba(99, 102, 241, 0.35);
   box-shadow: 0 6px 16px rgba(99, 102, 241, 0.18);
+}
+
+.stat-card.auto.is-active {
+  border: 2px solid rgba(16, 185, 129, 0.4);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.2);
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.5) 0%, rgba(209, 250, 229, 0.3) 100%);
+}
+
+.stat-card.hotspot.is-active {
+  border: 2px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.2);
+  background: linear-gradient(135deg, rgba(255, 251, 235, 0.5) 0%, rgba(254, 243, 199, 0.3) 100%);
 }
 
 .stat-icon {
@@ -2966,6 +3534,106 @@ onUnmounted(() => {
 
 .video-id-link:hover {
   color: var(--el-color-primary-dark-2);
+  text-decoration: underline;
+}
+
+.video-id-text {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* 自选视频容器样式 */
+.custom-video-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%);
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.custom-video-container:hover {
+  background: linear-gradient(135deg, #a7f3d0 0%, #d1fae5 100%);
+  border-color: #6ee7b7;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.15);
+}
+
+/* 72H热度异动视频容器样式 */
+.hotspot-video-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+  border: 1px solid #fbbf24;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.hotspot-video-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%);
+  animation: hotspotGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes hotspotGlow {
+  0% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.hotspot-video-container:hover {
+  background: linear-gradient(135deg, #fbbf24 0%, #fef3c7 100%);
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(251, 191, 36, 0.25);
+}
+
+.hotspot-video-icon {
+  color: #f59e0b;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(245, 158, 11, 0.3));
+}
+
+/* 72H热度异动视频ID样式 */
+.hotspot-video-id {
+  color: #b45309 !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(180, 83, 9, 0.1);
+}
+
+.hotspot-video-id:hover {
+  color: #92400e !important;
+  text-decoration: underline;
+}
+
+.custom-video-icon {
+  color: #059669;
+  flex-shrink: 0;
+}
+
+/* 自选视频的视频ID绿色样式 */
+.custom-video-id {
+  color: #059669 !important;
+  font-weight: 700 !important;
+}
+
+.custom-video-id:hover {
+  color: #047857 !important;
   text-decoration: underline;
 }
 
@@ -3101,12 +3769,18 @@ onUnmounted(() => {
   font-size: 12px;
   color: #374151;
   line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .create-time {
   font-size: 12px;
   color: #374151;
   line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 搜索标签样式 */
@@ -3169,6 +3843,24 @@ onUnmounted(() => {
   transform: scale(1.05);
 }
 
+/* 最后提醒时间样式 */
+.latest-alert-time {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.alert-time {
+  font-size: 12px;
+  color: #f59e0b;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.alert-time:hover {
+  color: #d97706;
+}
+
 .search-channel-more {
   border: none;
   background: #f3f4f6;
@@ -3177,6 +3869,38 @@ onUnmounted(() => {
   padding: 2px 6px;
   border-radius: 4px;
   cursor: pointer;
+}
+
+/* 视频备注样式 */
+.video-remark {
+  max-width: 100%;
+  line-height: 1.4;
+}
+
+.remark-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  color: #374151;
+  font-size: 12px;
+  cursor: pointer;
+  word-break: break-word;
+}
+
+/* 投资总金额样式 */
+.total-investment {
+  text-align: right;
+  line-height: 1.4;
+}
+
+.investment-amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: #059669;
+  font-family: 'Consolas', 'Monaco', monospace;
 }
 
 /* 标签筛选区域样式 */
@@ -3744,6 +4468,121 @@ onUnmounted(() => {
 
 :deep(.author-info-dialog .el-descriptions__content) {
   color: #111827;
+}
+
+/* 加入自选对话框样式 */
+.custom-selection-content {
+  padding: 0;
+}
+
+.video-info-section {
+  margin-bottom: 24px;
+}
+
+.video-info-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.video-title {
+  line-height: 1.4;
+  color: #374151;
+  word-break: break-word;
+  max-height: 60px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.description-section {
+  margin-bottom: 24px;
+}
+
+.description-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.investment-section {
+  margin-bottom: 16px;
+}
+
+.investment-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.investment-item {
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.investment-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.amount-input {
+  flex: 1;
+}
+
+.time-input {
+  flex: 1;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+:deep(.investment-item .el-form-item) {
+  margin-bottom: 0;
+}
+
+:deep(.investment-item .el-form-item__label) {
+  font-weight: 500;
+  color: #374151;
+}
+
+.loading-tip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: #6b7280;
+  font-size: 14px;
+  background: #f9fafb;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.no-investment-records {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 32px;
+  background: #f9fafb;
+  border: 2px dashed #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.add-investment-btn {
+  padding: 12px 24px;
+  font-size: 14px;
+  border-radius: 8px;
 }
 
 

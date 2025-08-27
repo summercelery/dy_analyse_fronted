@@ -100,12 +100,25 @@ export const monitorApi = {
   },
 
   // 获取监控统计概览
-  getMonitorStatistics(musicId) {
+  getMonitorStatistics(params) {
     return request({
       url: '/monitor/statistics',
       method: 'get',
-      params: {
-        musicId
+      params,
+      paramsSerializer: {
+        serialize: (params) => {
+          const searchParams = new URLSearchParams()
+          Object.keys(params).forEach(key => {
+            const value = params[key]
+            if (Array.isArray(value)) {
+              // 对于数组参数，使用JSON格式并进行URL编码
+              searchParams.append(key, JSON.stringify(value))
+            } else if (value !== undefined && value !== null) {
+              searchParams.append(key, value)
+            }
+          })
+          return searchParams.toString()
+        }
       }
     })
   },
@@ -129,6 +142,23 @@ export const monitorApi = {
       params: {
         musicId
       }
+    })
+  },
+
+  // 更新监控视频自选状态
+  updateCustomSelection(data) {
+    return request({
+      url: '/monitor/custom-selection',
+      method: 'put',
+      data
+    })
+  },
+
+  // 查询视频投资记录
+  getVideoInvestments(awemeId) {
+    return request({
+      url: `/investment/video/${awemeId}`,
+      method: 'get'
     })
   }
 }
