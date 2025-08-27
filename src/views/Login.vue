@@ -1,7 +1,7 @@
 <template>
   <div class="login-container">
     <div class="login-card">
-      <h1 class="login-title">抖音短视频分析系统</h1>
+      <h1 class="login-title"></h1>
       
       <el-tabs v-model="activeTab" class="login-tabs">
         <el-tab-pane label="登录" name="login">

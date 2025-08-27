@@ -5,6 +5,9 @@
       "Bash(find:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\c\\Users\\46518\\Desktop\\douyin"
+    ]
   }
 }

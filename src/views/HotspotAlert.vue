@@ -522,6 +522,184 @@
       </template>
     </el-dialog>
 
+    <!-- 统计对话框 -->
+    <el-dialog
+      v-model="showStatsDialog"
+      title="视频数据统计"
+      width="90%"
+      top="5vh"
+      :close-on-click-modal="false"
+    >
+      <div class="stats-dialog-content">
+        <div class="stats-header">
+          <div class="video-info">
+            <span class="video-id-label">视频ID:</span>
+            <span class="video-id-value">{{ currentStatsAwemeId }}</span>
+          </div>
+          <div class="time-range-selector">
+            <el-select 
+              v-model="statsDays" 
+              placeholder="选择时间范围"
+              style="width: 140px;"
+              @change="loadStatsChart"
+            >
+              <el-option label="最近7天" value="7" />
+              <el-option label="最近15天" value="15" />
+              <el-option label="最近30天" value="30" />
+            </el-select>
+          </div>
+        </div>
+
+        <div v-loading="statsLoading" class="stats-content">
+          <!-- 统计卡片 -->
+          <div v-if="latestStats" class="stats-grid">
+            <div 
+              class="stat-card likes"
+              :class="{ 'is-active': selectedStats.likes }"
+              @click="toggleStat('likes')"
+            >
+              <div class="stat-icon">
+                <div class="heart-icon-large">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ formatStatsNumber(latestStats.diggCount) }}</div>
+                <div class="stat-label">点赞数</div>
+                <div class="stat-trend" v-if="trends.digg">
+                  <el-icon :class="{ 'trend-up': trends.digg > 0, 'trend-down': trends.digg < 0 }">
+                    <component :is="trends.digg > 0 ? 'ArrowUp' : 'ArrowDown'" />
+                  </el-icon>
+                  <span>{{ Math.abs(trends.digg) }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              class="stat-card comments"
+              :class="{ 'is-active': selectedStats.comments }"
+              @click="toggleStat('comments')"
+            >
+              <div class="stat-icon">
+                <el-icon size="24"><ChatDotRound /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ formatStatsNumber(latestStats.commentCount) }}</div>
+                <div class="stat-label">评论数</div>
+                <div class="stat-trend" v-if="trends.comment">
+                  <el-icon :class="{ 'trend-up': trends.comment > 0, 'trend-down': trends.comment < 0 }">
+                    <component :is="trends.comment > 0 ? 'ArrowUp' : 'ArrowDown'" />
+                  </el-icon>
+                  <span>{{ Math.abs(trends.comment) }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              class="stat-card collects"
+              :class="{ 'is-active': selectedStats.collects }"
+              @click="toggleStat('collects')"
+            >
+              <div class="stat-icon">
+                <el-icon size="24"><Collection /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ formatStatsNumber(latestStats.collectCount) }}</div>
+                <div class="stat-label">收藏数</div>
+                <div class="stat-trend" v-if="trends.collect">
+                  <el-icon :class="{ 'trend-up': trends.collect > 0, 'trend-down': trends.collect < 0 }">
+                    <component :is="trends.collect > 0 ? 'ArrowUp' : 'ArrowDown'" />
+                  </el-icon>
+                  <span>{{ Math.abs(trends.collect) }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              class="stat-card shares"
+              :class="{ 'is-active': selectedStats.shares }"
+              @click="toggleStat('shares')"
+            >
+              <div class="stat-icon">
+                <el-icon size="24"><Share /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ formatStatsNumber(latestStats.shareCount) }}</div>
+                <div class="stat-label">分享数</div>
+                <div class="stat-trend" v-if="trends.share">
+                  <el-icon :class="{ 'trend-up': trends.share > 0, 'trend-down': trends.share < 0 }">
+                    <component :is="trends.share > 0 ? 'ArrowUp' : 'ArrowDown'" />
+                  </el-icon>
+                  <span>{{ Math.abs(trends.share) }}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 图表区域 -->
+          <el-card class="chart-card">
+            <template #header>
+              <div class="card-header">
+                <span class="card-title">数据趋势图</span>
+                <div class="chart-legend">
+                  <div 
+                    class="legend-item"
+                    :class="{ 'legend-disabled': !selectedStats.likes }"
+                    @click="toggleStat('likes')"
+                  >
+                    <div class="legend-dot likes-dot"></div>
+                    <span>点赞</span>
+                  </div>
+                  <div 
+                    class="legend-item"
+                    :class="{ 'legend-disabled': !selectedStats.comments }"
+                    @click="toggleStat('comments')"
+                  >
+                    <div class="legend-dot comments-dot"></div>
+                    <span>评论</span>
+                  </div>
+                  <div 
+                    class="legend-item"
+                    :class="{ 'legend-disabled': !selectedStats.collects }"
+                    @click="toggleStat('collects')"
+                  >
+                    <div class="legend-dot collects-dot"></div>
+                    <span>收藏</span>
+                  </div>
+                  <div 
+                    class="legend-item"
+                    :class="{ 'legend-disabled': !selectedStats.shares }"
+                    @click="toggleStat('shares')"
+                  >
+                    <div class="legend-dot shares-dot"></div>
+                    <span>分享</span>
+                  </div>
+                </div>
+              </div>
+            </template>
+            
+            <div class="chart-container">
+              <v-chart 
+                v-if="chartOption" 
+                :option="chartOption" 
+                style="height: 400px;"
+                autoresize
+              />
+              <div v-else-if="!statsLoading" class="empty-chart">
+                <el-empty description="暂无图表数据" />
+              </div>
+            </div>
+          </el-card>
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button @click="closeStatsDialog">关闭</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 提醒详情对话框 -->
     <el-dialog
       v-model="showDetailDialog"
@@ -601,11 +779,13 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { hotspotApi } from '@/api/hotspot'
 import { musicApi } from '@/api/music'
+import { videoApi } from '@/api/video'
 import { authApi } from '@/api/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowDown,
   ArrowLeft,
+  ArrowUp,
   Headset,
   TrendCharts,
   Bell,
@@ -615,8 +795,29 @@ import {
   View,
   Delete,
   ChatDotRound,
-  DataAnalysis
+  DataAnalysis,
+  Collection,
+  Share
 } from '@element-plus/icons-vue'
+import VChart from 'vue-echarts'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { LineChart } from 'echarts/charts'
+import {
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+} from 'echarts/components'
+
+use([
+  CanvasRenderer,
+  LineChart,
+  TitleComponent,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent
+])
 
 const route = useRoute()
 const router = useRouter()
@@ -654,6 +855,29 @@ const statistics = ref({
 const showBatchDialog = ref(false)
 const showDetailDialog = ref(false)
 const currentAlert = ref(null)
+
+// 统计对话框相关数据
+const showStatsDialog = ref(false)
+const statsLoading = ref(false)
+const currentStatsAwemeId = ref(null)
+const latestStats = ref(null)
+const statsDays = ref('7')
+const chartOption = ref(null)
+const chartData = ref(null)
+const trends = ref({
+  digg: 0,
+  comment: 0,
+  collect: 0,
+  share: 0
+})
+
+// 统计项选中状态，默认全部选中
+const selectedStats = ref({
+  likes: true,
+  comments: true,
+  collects: true,
+  shares: true
+})
 
 // 提醒级别映射
 const getAlertLevelType = (level) => {
@@ -1027,31 +1251,9 @@ const loadHotspotAlerts = async () => {
 // 查看视频统计
 const viewStats = (awemeId) => {
   if (awemeId) {
-    // 保存当前页面状态到URL参数中
-    const currentQuery = {
-      ...route.query,
-      // 保存筛选和搜索状态
-      searchKeyword: searchKeyword.value || undefined,
-      alertLevel: alertLevel.value || undefined,
-      timeWindow: timeWindow.value || undefined,
-      triggerMetric: triggerMetric.value || undefined,
-      startTime: startTime.value || undefined,
-      endTime: endTime.value || undefined,
-      currentFilter: currentFilter.value !== 'all' ? currentFilter.value : undefined
-    }
-    
-    // 移除undefined值
-    Object.keys(currentQuery).forEach(key => {
-      if (currentQuery[key] === undefined) {
-        delete currentQuery[key]
-      }
-    })
-    
-    // 使用replace更新当前路由的query参数，这样返回时能恢复状态
-    router.replace({ path: route.path, query: currentQuery }).then(() => {
-      // 然后跳转到统计页面
-      router.push(`/stats/${awemeId}`)
-    })
+    currentStatsAwemeId.value = awemeId
+    showStatsDialog.value = true
+    loadStatsData()
   } else {
     ElMessage.warning('视频ID无效')
   }
@@ -1273,6 +1475,264 @@ onMounted(async () => {
   await loadStatistics()
   await loadHotspotAlerts()
 })
+
+// 统计相关函数
+const formatStatsNumber = (num) => {
+  if (!num) return '0'
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + 'w'
+  }
+  return num.toString()
+}
+
+// 解析时间字符串格式 "yyyy MM-dd HH:mm" 为时间戳
+const parseTimeString = (timeStr) => {
+  if (!timeStr) return Date.now()
+  
+  try {
+    // 处理 "yyyy MM-dd HH:mm" 格式
+    // 例如: "2024 12-25 14:30"
+    const parts = timeStr.split(' ')
+    if (parts.length === 3) {
+      const year = parts[0]
+      const dateTime = parts[1] + ' ' + parts[2]
+      const fullDateTime = `${year}-${dateTime}`
+      return new Date(fullDateTime).getTime()
+    }
+    
+    // 如果格式不匹配，尝试直接解析
+    return new Date(timeStr).getTime()
+  } catch (error) {
+    console.error('时间解析失败:', timeStr, error)
+    return Date.now()
+  }
+}
+
+// 切换统计项选中状态
+const toggleStat = (statType) => {
+  selectedStats.value[statType] = !selectedStats.value[statType]
+  
+  // 如果所有统计项都被取消选中，则重新选中当前项
+  const allUnselected = Object.values(selectedStats.value).every(selected => !selected)
+  if (allUnselected) {
+    selectedStats.value[statType] = true
+  }
+  
+  // 重新渲染图表
+  if (chartData.value) {
+    renderChart(chartData.value)
+  }
+}
+
+const loadLatestStats = async () => {
+  try {
+    const response = await videoApi.getLatestVideoStats(currentStatsAwemeId.value)
+    if (response.code === 200) {
+      latestStats.value = response.data
+    }
+  } catch (error) {
+    console.error('加载最新统计失败:', error)
+  }
+}
+
+const loadStatsChart = async () => {
+  try {
+    const response = await videoApi.getVideoStatsChart(currentStatsAwemeId.value, statsDays.value)
+    if (response.code === 200) {
+      chartData.value = response.data
+      renderChart(response.data)
+    }
+  } catch (error) {
+    ElMessage.error('加载图表数据失败')
+  }
+}
+
+const renderChart = (data) => {
+  if (!data || !data.timestamps) {
+    chartOption.value = null
+    return
+  }
+  
+  // 根据选中状态构建系列数据
+  const series = []
+  
+  if (selectedStats.value.likes) {
+    series.push({
+      name: '点赞数',
+      type: 'line',
+      data: (data.diggCounts || []).map((value, index) => [parseTimeString(data.timestamps[index]), value]),
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: {
+        width: 3,
+        color: '#ff6b9d'
+      },
+      itemStyle: {
+        color: '#ff6b9d'
+      },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(255, 107, 157, 0.3)' },
+            { offset: 1, color: 'rgba(255, 107, 157, 0.05)' }
+          ]
+        }
+      }
+    })
+  }
+  
+  if (selectedStats.value.comments) {
+    series.push({
+      name: '评论数',
+      type: 'line',
+      data: (data.commentCounts || []).map((value, index) => [parseTimeString(data.timestamps[index]), value]),
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: {
+        width: 3,
+        color: '#4ecdc4'
+      },
+      itemStyle: {
+        color: '#4ecdc4'
+      }
+    })
+  }
+  
+  if (selectedStats.value.collects) {
+    series.push({
+      name: '收藏数',
+      type: 'line',
+      data: (data.collectCounts || []).map((value, index) => [parseTimeString(data.timestamps[index]), value]),
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: {
+        width: 3,
+        color: '#45b7d1'
+      },
+      itemStyle: {
+        color: '#45b7d1'
+      }
+    })
+  }
+  
+  if (selectedStats.value.shares) {
+    series.push({
+      name: '分享数',
+      type: 'line',
+      data: (data.shareCounts || []).map((value, index) => [parseTimeString(data.timestamps[index]), value]),
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: {
+        width: 3,
+        color: '#f9ca24'
+      },
+      itemStyle: {
+        color: '#f9ca24'
+      }
+    })
+  }
+
+  chartOption.value = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      },
+      backgroundColor: 'rgba(50, 50, 50, 0.95)',
+      borderColor: 'transparent',
+      textStyle: {
+        color: '#fff'
+      }
+    },
+    grid: {
+      left: '2%',
+      right: '2%',
+      bottom: '8%',
+      top: '5%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'time',
+      axisLine: {
+        lineStyle: {
+          color: '#e6e8eb'
+        }
+      },
+      axisLabel: {
+        color: '#6b7280',
+        formatter: (value) => {
+          // value 是时间戳，显示更详细的时间信息
+          const date = new Date(value)
+          const month = (date.getMonth() + 1).toString().padStart(2, '0')
+          const day = date.getDate().toString().padStart(2, '0')
+          const hours = date.getHours().toString().padStart(2, '0')
+          return `${month}-${day} ${hours}:00`
+        }
+      },
+      splitLine: {
+        show: false
+      }
+    },
+    yAxis: {
+      type: 'value',
+      axisLine: {
+        lineStyle: {
+          color: '#e6e8eb'
+        }
+      },
+      axisLabel: {
+        color: '#6b7280',
+        formatter: (value) => {
+          if (value >= 10000) {
+            return (value / 10000).toFixed(1) + 'w'
+          }
+          return value
+        }
+      },
+      splitLine: {
+        lineStyle: {
+          color: '#f1f3f4',
+          type: 'dashed'
+        }
+      }
+    },
+    series: series
+  }
+}
+
+const loadStatsData = async () => {
+  statsLoading.value = true
+  try {
+    await Promise.all([
+      loadLatestStats(),
+      loadStatsChart()
+    ])
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+const closeStatsDialog = () => {
+  showStatsDialog.value = false
+  currentStatsAwemeId.value = null
+  latestStats.value = null
+  chartOption.value = null
+  chartData.value = null
+  statsDays.value = '7'
+  // 重置选中状态
+  selectedStats.value = {
+    likes: true,
+    comments: true,
+    collects: true,
+    shares: true
+  }
+}
 </script>
 
 <style scoped>
@@ -1923,5 +2383,257 @@ onMounted(async () => {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
+}
+
+/* 统计对话框样式 */
+.stats-dialog-content {
+  padding: 0;
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 0 4px;
+}
+
+.video-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-id-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.video-id-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.time-range-selector {
+  display: flex;
+  align-items: center;
+}
+
+.stats-content {
+  min-height: 500px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.stats-dialog-content .stat-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #e6e8eb;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.stats-dialog-content .stat-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px);
+}
+
+.stats-dialog-content .stat-card.is-active {
+  border: 2px solid rgba(99, 102, 241, 0.35);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.18);
+  transform: translateY(-2px);
+}
+
+.stats-dialog-content .stat-card.is-active:hover {
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.25);
+  transform: translateY(-4px);
+}
+
+.stats-dialog-content .stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gradient);
+}
+
+.stats-dialog-content .stat-card.likes {
+  --gradient: linear-gradient(135deg, #ff6b9d 0%, #e74c8c 100%);
+}
+
+.stats-dialog-content .stat-card.comments {
+  --gradient: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+}
+
+.stats-dialog-content .stat-card.collects {
+  --gradient: linear-gradient(135deg, #45b7d1 0%, #2c5aa0 100%);
+}
+
+.stats-dialog-content .stat-card.shares {
+  --gradient: linear-gradient(135deg, #f9ca24 0%, #f0932b 100%);
+}
+
+.stats-dialog-content .stat-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient);
+  color: white;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.stats-dialog-content .stat-card.is-active .stat-icon {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.stats-dialog-content .stat-info {
+  flex: 1;
+}
+
+.stats-dialog-content .stat-value {
+  font-size: 32px;
+  font-weight: 800;
+  color: #1f2937;
+  line-height: 1.2;
+  margin-bottom: 4px;
+  transition: color 0.3s ease;
+}
+
+.stats-dialog-content .stat-label {
+  font-size: 16px;
+  color: #6b7280;
+  font-weight: 500;
+  margin-bottom: 8px;
+  transition: color 0.3s ease;
+}
+
+.stats-dialog-content .stat-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stats-dialog-content .trend-up {
+  color: #10b981;
+}
+
+.stats-dialog-content .trend-down {
+  color: #ef4444;
+}
+
+.stats-dialog-content .chart-card {
+  border-radius: 16px;
+  border: 1px solid #e6e8eb;
+  overflow: hidden;
+}
+
+.stats-dialog-content .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stats-dialog-content .card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.stats-dialog-content .chart-legend {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.stats-dialog-content .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.stats-dialog-content .legend-item:hover {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.stats-dialog-content .legend-item.legend-disabled {
+  opacity: 0.4;
+  color: #9ca3af;
+}
+
+.stats-dialog-content .legend-item.legend-disabled:hover {
+  opacity: 0.6;
+  background: rgba(156, 163, 175, 0.1);
+}
+
+.stats-dialog-content .legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.stats-dialog-content .likes-dot {
+  background: #ff6b9d;
+}
+
+.stats-dialog-content .comments-dot {
+  background: #4ecdc4;
+}
+
+.stats-dialog-content .collects-dot {
+  background: #45b7d1;
+}
+
+.stats-dialog-content .shares-dot {
+  background: #f9ca24;
+}
+
+.stats-dialog-content .chart-container {
+  padding: 20px 0;
+}
+
+.stats-dialog-content .empty-chart {
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heart-icon-large {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 </style>
