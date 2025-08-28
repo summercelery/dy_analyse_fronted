@@ -36,6 +36,10 @@
             <el-icon><Headset /></el-icon>
             <span>音乐管理</span>
           </el-menu-item>
+          <el-menu-item index="/favorite-author" class="menu-item">
+            <el-icon><Star /></el-icon>
+            <span>收藏播主</span>
+          </el-menu-item>
         </el-menu>
       </nav>
 
@@ -157,16 +161,6 @@
                         size="small" 
                         :icon="View"
                         @click="viewMusicDetail(row)"
-                        link
-                      />
-                    </el-tooltip>
-                    
-                    <el-tooltip content="热度提醒" placement="top">
-                      <el-button 
-                        type="warning" 
-                        size="small" 
-                        :icon="TrendCharts"
-                        @click="viewHotspotAlert(row)"
                         link
                       />
                     </el-tooltip>
@@ -358,8 +352,8 @@ import {
   Odometer,
   View,
   ArrowDown,
-  TrendCharts,
-  DataAnalysis
+  DataAnalysis,
+  Star
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -626,10 +620,6 @@ const viewMusicDetail = (musicData) => {
   router.push({ path: '/monitor', query: { musicId: music.id } })
 }
 
-const viewHotspotAlert = (musicData) => {
-  const music = musicData.music || musicData
-  router.push({ path: '/hotspot', query: { musicId: music.id } })
-}
 
 const isValidEmail = (email) => {
   const pattern = /^[\w.!#$%&'*+/=?^`{|}~-]+@[\w-]+(\.[\w-]+)+$/

@@ -36,6 +36,10 @@
             <el-icon><Headset /></el-icon>
             <span>音乐管理</span>
           </el-menu-item>
+          <el-menu-item index="/favorite-author" class="menu-item">
+            <el-icon><Star /></el-icon>
+            <span>收藏播主</span>
+          </el-menu-item>
         </el-menu>
       </nav>
 
@@ -145,105 +149,125 @@
         <!-- 操作栏（已与统计卡片交换位置） -->
         <div v-if="currentMusicId" class="section-divider"></div>
         <div v-if="currentMusicId" class="toolbar">
-          <div class="toolbar-left">
-            <el-button v-if="currentMusicId" @click="goBackFromMusic" :icon="ArrowLeft">
-              {{ route.query.from === 'hotspot' ? '返回热度提醒' : '返回音乐管理' }}
-            </el-button>
-            <el-button type="primary" @click="showAddDialog = true" :icon="Plus">
-              添加监控
-            </el-button>
-            <el-button @click="() => loadMonitorVideos()" :loading="loading" :icon="Refresh">
-              刷新
-            </el-button>
-          </div>
-          <div class="toolbar-right">
-            <!-- 热度异动模式的搜索控件 -->
-            <div v-if="showHotspotFilter" class="hotspot-search-controls">
-              <el-select
-                v-model="sortField"
-                placeholder="排序方式"
-                style="width: 120px;"
-                @change="handleSortChange"
-              >
-                <el-option label="按点赞数" value="diggCount" />
-                <el-option label="按发布时间" value="publishTime" />
-                <el-option label="按创建时间" value="createTime" />
-              </el-select>
-              <el-select
-                v-model="sortOrder"
-                placeholder="排序顺序"
-                style="width: 90px;"
-                @change="handleSortChange"
-              >
-                <el-option label="降序" value="desc" />
-                <el-option label="升序" value="asc" />
-              </el-select>
-              
-              <div class="time-range-controls">
-                <el-date-picker
-                  v-model="startTime"
-                  type="datetime"
-                  placeholder="开始时间"
-                  style="width: 160px;"
-                  format="YYYY-MM-DD HH:mm:ss"
-                  value-format="YYYY-MM-DD HH:mm:ss"
-                  @change="handleTimeChange"
-                />
-                <span class="time-separator">至</span>
-                <el-date-picker
-                  v-model="endTime"
-                  type="datetime"
-                  placeholder="结束时间"
-                  style="width: 160px;"
-                  format="YYYY-MM-DD HH:mm:ss"
-                  value-format="YYYY-MM-DD HH:mm:ss"
-                  @change="handleTimeChange"
-                />
+          <!-- 热度异动模式的工具栏布局 -->
+          <div v-if="showHotspotFilter" class="hotspot-toolbar-layout">
+            <div class="hotspot-main-row">
+              <div class="toolbar-left">
+                <el-button v-if="currentMusicId" @click="goBackFromMusic" :icon="ArrowLeft">
+                  {{ route.query.from === 'hotspot' ? '返回热度提醒' : '返回音乐管理' }}
+                </el-button>
+                <el-button type="primary" @click="showAddDialog = true" :icon="Plus">
+                  添加监控
+                </el-button>
+                <el-button @click="() => loadMonitorVideos()" :loading="loading" :icon="Refresh">
+                  刷新
+                </el-button>
               </div>
-              
-              <el-input
-                v-model="searchKeyword"
-                placeholder="搜索视频ID、链接或播主名称"
-                :prefix-icon="Search"
-                style="width: 250px;"
-                clearable
-                @keyup.enter="handleSearch"
-                @clear="handleSearch"
-              />
-              <el-button @click="handleSearch" :icon="Search" type="primary">搜索</el-button>
+              <div class="toolbar-right">
+                <div class="hotspot-main-controls">
+                  <el-select
+                    v-model="sortField"
+                    placeholder="排序方式"
+                    style="width: 120px;"
+                    @change="handleSortChange"
+                  >
+                    <el-option label="按点赞数" value="diggCount" />
+                    <el-option label="按发布时间" value="publishTime" />
+                    <el-option label="按创建时间" value="createTime" />
+                  </el-select>
+                  <el-select
+                    v-model="sortOrder"
+                    placeholder="排序顺序"
+                    style="width: 90px;"
+                    @change="handleSortChange"
+                  >
+                    <el-option label="降序" value="desc" />
+                    <el-option label="升序" value="asc" />
+                  </el-select>
+                  
+                  <el-date-picker
+                    v-model="customStartDate"
+                    type="date"
+                    placeholder="开始日期"
+                    style="width: 140px;"
+                    format="YYYY-MM-DD"
+                    value-format="YYYY-MM-DD"
+                    @change="handleCustomDateChange"
+                  />
+                  <span class="time-separator">至</span>
+                  <el-date-picker
+                    v-model="customEndDate"
+                    type="date"
+                    placeholder="结束日期"
+                    style="width: 140px;"
+                    format="YYYY-MM-DD"
+                    value-format="YYYY-MM-DD"
+                    @change="handleCustomDateChange"
+                  />
+                  
+                  <el-input
+                    v-model="searchKeyword"
+                    placeholder="搜索视频ID、链接或播主名称"
+                    :prefix-icon="Search"
+                    style="width: 250px;"
+                    clearable
+                    @keyup.enter="handleSearch"
+                    @clear="handleSearch"
+                  />
+                  <el-button @click="handleSearch" :icon="Search" type="primary">搜索</el-button>
+                </div>
+              </div>
             </div>
-            
-            <!-- 普通模式的搜索控件 -->
-            <div v-else class="normal-search-controls">
-              <el-select
-                v-model="sortField"
-                placeholder="排序方式"
-                style="width: 140px; margin-right: 12px;"
-                @change="handleSortChange"
-              >
-                <el-option label="按点赞数" value="diggCount" />
-                <el-option label="按发布时间" value="publishTime" />
-                <el-option label="按创建时间" value="createTime" />
-              </el-select>
-              <el-select
-                v-model="sortOrder"
-                placeholder="排序顺序"
-                style="width: 100px; margin-right: 12px;"
-                @change="handleSortChange"
-              >
-                <el-option label="降序" value="desc" />
-                <el-option label="升序" value="asc" />
-              </el-select>
-              <el-input
-                v-model="searchKeyword"
-                placeholder="搜索视频ID、链接或播主名称"
-                :prefix-icon="Search"
-                style="width: 300px;"
-                clearable
-                @keyup.enter="handleSearch"
-                @clear="handleSearch"
-              />
-              <el-button @click="handleSearch" :icon="Search" style="margin-left: 8px;">搜索</el-button>
+          </div>
+          
+          <!-- 普通模式的工具栏布局 -->
+          <div v-else class="normal-toolbar-layout">
+            <div class="normal-main-row">
+              <div class="toolbar-left">
+                <el-button v-if="currentMusicId" @click="goBackFromMusic" :icon="ArrowLeft">
+                  {{ route.query.from === 'hotspot' ? '返回热度提醒' : '返回音乐管理' }}
+                </el-button>
+                <el-button type="primary" @click="showAddDialog = true" :icon="Plus">
+                  添加监控
+                </el-button>
+                <el-button @click="() => loadMonitorVideos()" :loading="loading" :icon="Refresh">
+                  刷新
+                </el-button>
+              </div>
+              <div class="toolbar-right">
+                <div class="normal-main-controls">
+                  <el-select
+                    v-model="sortField"
+                    placeholder="排序方式"
+                    style="width: 120px;"
+                    @change="handleSortChange"
+                  >
+                    <el-option label="按点赞数" value="diggCount" />
+                    <el-option label="按发布时间" value="publishTime" />
+                    <el-option label="按创建时间" value="createTime" />
+                  </el-select>
+                  <el-select
+                    v-model="sortOrder"
+                    placeholder="排序顺序"
+                    style="width: 90px;"
+                    @change="handleSortChange"
+                  >
+                    <el-option label="降序" value="desc" />
+                    <el-option label="升序" value="asc" />
+                  </el-select>
+                  
+                  <el-input
+                    v-model="searchKeyword"
+                    placeholder="搜索视频ID、链接或播主名称"
+                    :prefix-icon="Search"
+                    style="width: 250px;"
+                    clearable
+                    @keyup.enter="handleSearch"
+                    @clear="handleSearch"
+                  />
+                  <el-button @click="handleSearch" :icon="Search" type="primary">搜索</el-button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -340,64 +364,167 @@
               @selection-change="handleSelectionChange"
               :empty-text="monitorList.length === 0 ? '暂无监控数据' : ''"
               size="default"
-              :cell-style="{ padding: '6px 6px' }"
+              :cell-style="{ padding: '3px 3px' }"
               :header-cell-style="{ padding: '8px 6px', background: '#fafafa' }"
+              :expand-row-keys="expandedRows"
+              row-key="monitorVideo.id"
             >
               <el-table-column type="selection" width="50" />
               
-              <el-table-column label="视频ID" width="140">
+              <!-- 只在72H热度异动模式下显示展开行（模仿HotspotAlert.vue的展开表格） -->
+              <el-table-column v-if="showHotspotFilter" type="expand" width="50">
+                <template #default="{ row }">
+                  <div class="expand-content">
+                    <el-table :data="getHotspotAlerts(row)" size="small" class="expand-table" stripe>
+                      <el-table-column label="检测时间" width="160" align="center">
+                        <template #default="{ row: alert }">
+                          <span class="time-text">{{ formatDate(alert.detectionTime) }}</span>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="提醒级别" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <el-tag :type="getAlertLevelType(alert.alertLevel)" size="small">
+                            {{ getAlertLevelText(alert.alertLevel) }}
+                          </el-tag>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="时间窗口" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <el-tag :type="getTimeWindowType(alert.timeWindow)" size="small">
+                            {{ getTimeWindowText(alert.timeWindow) }}
+                          </el-tag>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="触发指标" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <el-tag size="small" type="info">
+                            {{ getTriggerMetricText(alert.triggerMetric) }}
+                          </el-tag>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="触发评分" width="100" align="center">
+                        <template #default="{ row: alert }">
+                          <span :class="getTriggerScoreClass(alert.triggerScore, alert.timeWindow)" class="score-text">
+                            {{ formatTriggerScore(alert.triggerScore) }}
+                          </span>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="点赞增长" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <div class="growth-detail">
+                            <div class="growth-rate">+{{ formatGrowthRate(alert.diggGrowthRate) }}%</div>
+                            <div class="growth-count">+{{ formatNumber(calculateGrowth(alert.currentDiggCount, alert.baselineDiggCount)) }}</div>
+                          </div>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="评论增长" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <div class="growth-detail">
+                            <div class="growth-rate">+{{ formatGrowthRate(alert.commentGrowthRate) }}%</div>
+                            <div class="growth-count">+{{ formatNumber(calculateGrowth(alert.currentCommentCount, alert.baselineCommentCount)) }}</div>
+                          </div>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="收藏增长" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <div class="growth-detail">
+                            <div class="growth-rate">+{{ formatGrowthRate(alert.collectGrowthRate) }}%</div>
+                            <div class="growth-count">+{{ formatNumber(calculateGrowth(alert.currentCollectCount, alert.baselineCollectCount)) }}</div>
+                          </div>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="分享增长" width="110" align="center">
+                        <template #default="{ row: alert }">
+                          <div class="growth-detail">
+                            <div class="growth-rate">+{{ formatGrowthRate(alert.shareGrowthRate) }}%</div>
+                            <div class="growth-count">+{{ formatNumber(calculateGrowth(alert.currentShareCount, alert.baselineShareCount)) }}</div>
+                          </div>
+                        </template>
+                      </el-table-column>
+                      
+                      <el-table-column label="操作" width="100" align="center" fixed="right">
+                        <template #default="{ row: alert }">
+                          <div class="expand-actions">
+                            <el-tooltip content="查看详情" placement="top">
+                              <el-button 
+                                size="small" 
+                                type="primary" 
+                                link 
+                                :icon="View"
+                                @click="viewAlertDetail(alert)"
+                              />
+                            </el-tooltip>
+                            <el-tooltip content="删除" placement="top">
+                              <el-button 
+                                size="small" 
+                                type="danger" 
+                                link 
+                                :icon="Delete"
+                                @click="deleteAlert(alert)"
+                              />
+                            </el-tooltip>
+                          </div>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                  </div>
+                </template>
+              </el-table-column>
+              
+              <el-table-column width="23" align="center" :show-overflow-tooltip="false">
+                <template #default="{ row }">
+                  <div class="custom-icon-cell">
+                    <el-icon 
+                      v-if="row.monitorVideo?.joinCustomType === 1" 
+                      class="custom-video-icon" 
+                      size="16"
+                    >
+                      <StarFilled />
+                    </el-icon>
+                  </div>
+                </template>
+              </el-table-column>
+              
+              <el-table-column label="视频ID" width="120">
                 <template #default="{ row }">
                   <div class="video-id">
                     <div 
-                      v-if="isRecentHotspotAlert(row)"
-                      class="hotspot-video-container"
+                      :class="[
+                        'video-id-container',
+                        { 'hotspot-video-container': isRecentHotspotAlert(row) }
+                      ]"
                     >
-                      <el-icon class="hotspot-video-icon" size="12"><TrendCharts /></el-icon>
+                      <!-- 视频ID链接 -->
                       <el-link 
                         v-if="row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId"
                         :href="`https://www.douyin.com/video/${row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId}`" 
                         target="_blank"
                         type="primary"
-                        class="video-id-link hotspot-video-id"
+                        :class="[
+                          'video-id-link',
+                          { 'hotspot-video-id': isRecentHotspotAlert(row) }
+                        ]"
                       >
                         {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
                       </el-link>
-                      <span v-else class="video-id-text hotspot-video-id">
+                      <span 
+                        v-else 
+                        :class="[
+                          'video-id-text',
+                          { 'hotspot-video-id': isRecentHotspotAlert(row) }
+                        ]"
+                      >
                         {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
                       </span>
                     </div>
-                    <div 
-                      v-else-if="row.monitorVideo?.joinCustomType === 1"
-                      class="custom-video-container"
-                    >
-                      <el-icon class="custom-video-icon" size="12"><Star /></el-icon>
-                      <el-link 
-                        v-if="row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId"
-                        :href="`https://www.douyin.com/video/${row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId}`" 
-                        target="_blank"
-                        type="primary"
-                        class="video-id-link custom-video-id"
-                      >
-                        {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
-                      </el-link>
-                      <span v-else class="video-id-text custom-video-id">
-                        {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
-                      </span>
-                    </div>
-                    <template v-else>
-                      <el-link 
-                        v-if="row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId"
-                        :href="`https://www.douyin.com/video/${row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId}`" 
-                        target="_blank"
-                        type="primary"
-                        class="video-id-link"
-                      >
-                        {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
-                      </el-link>
-                      <span v-else class="video-id-text">
-                        {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
-                      </span>
-                    </template>
                   </div>
                   <!-- 调试信息 -->
                   <div v-if="false" style="font-size: 10px; color: #999;">
@@ -412,7 +539,7 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="视频描述" width="200">
+              <el-table-column label="视频描述" width="185">
                 <template #default="{ row }">
                   <div class="video-desc">
                     <el-tooltip 
@@ -476,19 +603,36 @@
                 </template>
               </el-table-column>
               
-              <!-- 当开启72H热度异动筛选时显示最后提醒时间 -->
+              <!-- 当开启72H热度异动筛选时显示热度提醒信息（模仿HotspotAlert列表） -->
               <template v-if="showHotspotFilter">
                 <el-table-column 
-                  label="最后提醒时间" 
-                  width="160"
+                  label="提醒统计" 
+                  width="180"
                   align="center"
                 >
                   <template #default="{ row }">
-                    <div class="latest-alert-time">
-                      <span v-if="row.monitorVideo?.latestHotspotAlertTime" class="alert-time">
-                        {{ formatPublishTime(row.monitorVideo.latestHotspotAlertTime) }}
+                    <div class="alert-stats">
+                      <div class="total-alerts">共 {{ getAlertStats(row).total }} 条提醒</div>
+                      <div class="level-stats">
+                        <el-tag v-if="getAlertStats(row).level1 > 0" type="success" size="small">轻度{{ getAlertStats(row).level1 }}</el-tag>
+                        <el-tag v-if="getAlertStats(row).level2 > 0" type="warning" size="small">中度{{ getAlertStats(row).level2 }}</el-tag>
+                        <el-tag v-if="getAlertStats(row).level3 > 0" type="danger" size="small">高度{{ getAlertStats(row).level3 }}</el-tag>
+                        <el-tag v-if="getAlertStats(row).level4 > 0" type="danger" size="small">极度{{ getAlertStats(row).level4 }}</el-tag>
+                      </div>
+                    </div>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column 
+                  label="最高评分" 
+                  width="120" 
+                  align="center"
+                >
+                  <template #default="{ row }">
+                    <div class="trigger-score">
+                      <span :class="getTriggerScoreClass(getMaxTriggerScore(row), getMaxTriggerScoreTimeWindow(row))" class="score-text">
+                        {{ formatTriggerScore(getMaxTriggerScore(row)) }}
                       </span>
-                      <span v-else class="na-text">无提醒记录</span>
                     </div>
                   </template>
                 </el-table-column>
@@ -656,6 +800,16 @@
                       />
                     </el-tooltip>
                     
+                    <el-tooltip :content="row.monitorVideo?.joinCustomType === 1 ? '更新自选' : '加入自选'" placement="top">
+                      <el-button 
+                        type="success" 
+                        size="small" 
+                        :icon="Collection"
+                        @click="openCustomSelectionDialog(row)"
+                        link
+                      />
+                    </el-tooltip>
+                    
                     <el-tooltip :content="row.monitorVideo?.status === 1 ? '停用监控' : '启用监控'" placement="top">
                       <el-button 
                         :type="row.monitorVideo?.status === 1 ? 'warning' : 'success'"
@@ -666,16 +820,6 @@
                       >
                         {{ row.monitorVideo?.status === 1 ? '停用' : '启用' }}
                       </el-button>
-                    </el-tooltip>
-                    
-                    <el-tooltip :content="row.monitorVideo?.joinCustomType === 1 ? '更新自选' : '加入自选'" placement="top">
-                      <el-button 
-                        type="success" 
-                        size="small" 
-                        :icon="Collection"
-                        @click="openCustomSelectionDialog(row)"
-                        link
-                      />
                     </el-tooltip>
                     
                     <el-tooltip content="删除监控" placement="top">
@@ -1107,30 +1251,146 @@
     >
       <div v-loading="authorLoading">
         <div v-if="currentAuthor" class="author-info-dialog">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="用户ID">{{ currentAuthor.userId }}</el-descriptions-item>
-            <el-descriptions-item label="昵称">{{ currentAuthor.nickname }}</el-descriptions-item>
-            <el-descriptions-item label="粉丝">{{ formatAuthorNumber(currentAuthor.followerCount) }}</el-descriptions-item>
-            <el-descriptions-item label="获赞">{{ formatAuthorNumber(currentAuthor.totalFavorited) }}</el-descriptions-item>
-            <el-descriptions-item label="性别">{{ currentAuthor.gender || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="地区">{{ currentAuthor.ipLocation || '-' }}</el-descriptions-item>
-            <el-descriptions-item v-if="currentAuthor.userUrl" label="播主地址" :span="2">
-              <el-link 
-                type="primary" 
-                :href="currentAuthor.userUrl" 
-                target="_blank"
-                class="author-link"
-              >
-                {{ currentAuthor.userUrl }}
-              </el-link>
-            </el-descriptions-item>
-          </el-descriptions>
+          <!-- 播主头像区域 -->
+          <div class="author-avatar-section">
+            <el-avatar 
+              :src="currentAuthor.authorAvatar" 
+              :size="80"
+              class="author-avatar"
+            >
+              <el-icon><User /></el-icon>
+            </el-avatar>
+            <div class="author-basic-info">
+              <h3>{{ currentAuthor.nickname || '未知播主' }}</h3>
+              <p class="user-id">{{ currentAuthor.userId || 'N/A' }}</p>
+              <div class="author-stats">
+                <span class="stat-item">
+                  <el-icon><User /></el-icon>
+                  {{ formatAuthorNumber(currentAuthor.followerCount) }} 粉丝
+                </span>
+                <span class="stat-item">
+                  <el-icon><Star /></el-icon>
+                  {{ formatAuthorNumber(currentAuthor.totalFavorited) }} 获赞
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 详细信息区域 -->
+          <div v-if="currentAuthor.userDesc || currentAuthor.userUrl" class="author-details">
+            <el-descriptions :column="1" border>
+              <el-descriptions-item v-if="currentAuthor.userDesc" label="播主描述">
+                <div class="author-description">{{ currentAuthor.userDesc }}</div>
+              </el-descriptions-item>
+              <el-descriptions-item v-if="currentAuthor.userUrl" label="播主地址">
+                <el-link 
+                  type="primary" 
+                  :href="currentAuthor.userUrl" 
+                  target="_blank"
+                  class="author-link"
+                >
+                  {{ currentAuthor.userUrl }}
+                </el-link>
+              </el-descriptions-item>
+            </el-descriptions>
+          </div>
         </div>
         <el-empty v-else-if="!authorLoading" description="暂无播主信息" />
       </div>
       
       <template #footer>
         <el-button @click="closeAuthorDialog">关闭</el-button>
+        <el-button 
+          v-if="currentAuthor?.userId"
+          :type="authorIsFavorited ? 'warning' : 'primary'"
+          :loading="favoriteLoading"
+          @click="toggleAuthorFavorite"
+        >
+          {{ authorIsFavorited ? '取消收藏' : '收藏播主' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 播主设置对话框 -->
+    <el-dialog
+      v-model="showAuthorSettingDialog"
+      title="收藏播主设置"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="authorSettingForm" label-width="100px" :rules="authorSettingRules" ref="authorSettingFormRef">
+        <el-form-item label="播主昵称">
+          <el-input :value="currentAuthor?.nickname || ''" disabled />
+        </el-form-item>
+        
+        <el-form-item label="频道类型" prop="channelType">
+          <el-select 
+            v-model="authorSettingForm.channelType" 
+            placeholder="请选择频道类型"
+            style="width: 100%"
+            clearable
+            filterable
+            allow-create
+          >
+            <el-option label="美食" value="美食" />
+            <el-option label="美妆" value="美妆" />
+            <el-option label="时尚" value="时尚" />
+            <el-option label="娱乐" value="娱乐" />
+            <el-option label="音乐" value="音乐" />
+            <el-option label="舞蹈" value="舞蹈" />
+            <el-option label="游戏" value="游戏" />
+            <el-option label="科技" value="科技" />
+            <el-option label="教育" value="教育" />
+            <el-option label="旅游" value="旅游" />
+            <el-option label="汽车" value="汽车" />
+            <el-option label="体育" value="体育" />
+            <el-option label="生活" value="生活" />
+            <el-option label="搞笑" value="搞笑" />
+            <el-option label="知识" value="知识" />
+            <el-option label="其他" value="其他" />
+          </el-select>
+        </el-form-item>
+        
+        <el-form-item label="播主级别" prop="authorLevel">
+          <el-radio-group v-model="authorSettingForm.authorLevel">
+            <el-radio :value="1">普通</el-radio>
+            <el-radio :value="2">优质</el-radio>
+            <el-radio :value="3">顶级</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        
+        <el-form-item label="背景颜色" prop="backgroundColor">
+          <div class="color-picker-container">
+            <el-color-picker 
+              v-model="authorSettingForm.backgroundColor"
+              show-alpha
+              :predefine="predefineColors"
+            />
+            <el-input 
+              v-model="authorSettingForm.backgroundColor" 
+              placeholder="如：#FFB6C1"
+              style="width: 200px; margin-left: 12px;"
+            />
+          </div>
+        </el-form-item>
+        
+        <el-form-item label="备注信息" prop="remark">
+          <el-input
+            v-model="authorSettingForm.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入备注信息，如：优质美食博主"
+            maxlength="200"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <el-button @click="closeAuthorSettingDialog">取消</el-button>
+        <el-button type="primary" @click="confirmAuthorSetting" :loading="favoriteLoading">
+          确认收藏
+        </el-button>
       </template>
     </el-dialog>
 
@@ -1275,6 +1535,116 @@
       </template>
     </el-dialog>
 
+    <!-- 热度提醒详情对话框 -->
+    <el-dialog
+      v-model="showAlertDetailDialog"
+      title="热度异动详情"
+      width="520px"
+      :close-on-click-modal="false"
+      class="simple-alert-dialog"
+    >
+      <div v-if="currentAlertDetail" class="simple-alert-content">
+        <!-- 基本信息 -->
+        <div class="alert-info-section">
+          <div class="info-row">
+            <span class="info-label">检测时间</span>
+            <span class="info-value">{{ formatDate(currentAlertDetail.detectionTime) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">基准时间</span>
+            <span class="info-value">{{ formatDate(currentAlertDetail.baselineTime) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">触发评分</span>
+            <span :class="getTriggerScoreClass(currentAlertDetail.triggerScore, currentAlertDetail.timeWindow)" 
+                  class="score-badge simple">
+              {{ formatTriggerScore(currentAlertDetail.triggerScore) }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">提醒级别</span>
+            <el-tag :type="getAlertLevelType(currentAlertDetail.alertLevel)" size="small">
+              {{ getAlertLevelText(currentAlertDetail.alertLevel) }}
+            </el-tag>
+          </div>
+          <div class="info-row">
+            <span class="info-label">时间窗口</span>
+            <el-tag :type="getTimeWindowType(currentAlertDetail.timeWindow)" size="small">
+              {{ getTimeWindowText(currentAlertDetail.timeWindow) }}
+            </el-tag>
+          </div>
+          <div class="info-row">
+            <span class="info-label">触发指标</span>
+            <el-tag type="info" size="small">
+              {{ getTriggerMetricText(currentAlertDetail.triggerMetric) }}
+            </el-tag>
+          </div>
+        </div>
+
+        <!-- 数据对比 -->
+        <div class="data-section">
+          <h4 class="section-header">增长数据</h4>
+          <div class="data-rows">
+            <div class="data-row">
+              <div class="data-label">
+                <span class="data-icon">❤️</span>
+                <span>点赞</span>
+              </div>
+              <div class="data-stats">
+                <span class="baseline">{{ formatNumber(currentAlertDetail.baselineDiggCount || 0) }}</span>
+                <span class="arrow">→</span>
+                <span class="current">{{ formatNumber(currentAlertDetail.currentDiggCount || 0) }}</span>
+                <span class="growth positive">+{{ formatGrowthRate(currentAlertDetail.diggGrowthRate) }}%</span>
+              </div>
+            </div>
+            
+            <div class="data-row">
+              <div class="data-label">
+                <span class="data-icon">💬</span>
+                <span>评论</span>
+              </div>
+              <div class="data-stats">
+                <span class="baseline">{{ formatNumber(currentAlertDetail.baselineCommentCount || 0) }}</span>
+                <span class="arrow">→</span>
+                <span class="current">{{ formatNumber(currentAlertDetail.currentCommentCount || 0) }}</span>
+                <span class="growth positive">+{{ formatGrowthRate(currentAlertDetail.commentGrowthRate) }}%</span>
+              </div>
+            </div>
+            
+            <div class="data-row">
+              <div class="data-label">
+                <span class="data-icon">⭐</span>
+                <span>收藏</span>
+              </div>
+              <div class="data-stats">
+                <span class="baseline">{{ formatNumber(currentAlertDetail.baselineCollectCount || 0) }}</span>
+                <span class="arrow">→</span>
+                <span class="current">{{ formatNumber(currentAlertDetail.currentCollectCount || 0) }}</span>
+                <span class="growth positive">+{{ formatGrowthRate(currentAlertDetail.collectGrowthRate) }}%</span>
+              </div>
+            </div>
+            
+            <div class="data-row">
+              <div class="data-label">
+                <span class="data-icon">📤</span>
+                <span>分享</span>
+              </div>
+              <div class="data-stats">
+                <span class="baseline">{{ formatNumber(currentAlertDetail.baselineShareCount || 0) }}</span>
+                <span class="arrow">→</span>
+                <span class="current">{{ formatNumber(currentAlertDetail.currentShareCount || 0) }}</span>
+                <span class="growth positive">+{{ formatGrowthRate(currentAlertDetail.shareGrowthRate) }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button @click="closeAlertDetailDialog">关闭</el-button>
+      </template>
+    </el-dialog>
+
 
 
   </div>
@@ -1289,6 +1659,7 @@ import { musicApi } from '@/api/music'
 import { videoApi } from '@/api/video'
 import { authorApi } from '@/api/author'
 import { authApi } from '@/api/auth'
+import { favoriteApi } from '@/api/favorite'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { parseTags } from '@/utils/tagUtils'
 import {
@@ -1315,11 +1686,13 @@ import {
   Collection,
   Close,
   Warning,
+  TrendCharts,
   MagicStick,
   Cpu,
-  TrendCharts,
   Share,
-  Star
+  Star,
+  StarFilled,
+  User
 } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -1350,6 +1723,7 @@ const addLoading = ref(false)
 const monitorList = ref([])
 const searchKeyword = ref('')
 const selectedRows = ref([])
+const expandedRows = ref([]) // 展开的行key列表
 const currentMusicId = ref(null) // 当前过滤的音乐ID
 const currentMusicInfo = ref(null)
 const selectedSearchTags = ref([])
@@ -1361,8 +1735,10 @@ const sortOrder = ref('desc') // 排序顺序：desc(降序), asc(升序)
 
 // 热度异动筛选相关
 const showHotspotFilter = ref(false)
-const startTime = ref('')
-const endTime = ref('')
+const startTime = ref('')  // 实际传给API的开始时间（带时分秒）
+const endTime = ref('')    // 实际传给API的结束时间（带时分秒）
+const customStartDate = ref('') // 用户在日期选择器中选择的开始日期（仅日期）
+const customEndDate = ref('')   // 用户在日期选择器中选择的结束日期（仅日期）
 
 // 分页相关
 const currentPage = ref(1)
@@ -1438,6 +1814,59 @@ const selectedStats = ref({
 const showAuthorDialog = ref(false)
 const authorLoading = ref(false)
 const currentAuthor = ref(null)
+const favoriteLoading = ref(false)
+const authorIsFavorited = ref(false)
+
+// 播主设置对话框相关数据
+const showAuthorSettingDialog = ref(false)
+const authorSettingFormRef = ref(null)
+const authorSettingForm = ref({
+  channelType: '',
+  authorLevel: 1,
+  backgroundColor: '',
+  remark: ''
+})
+
+// 预定义颜色选项
+const predefineColors = [
+  '#FFB6C1', '#FFA07A', '#98FB98', '#87CEEB', '#DDA0DD',
+  '#F0E68C', '#FFC0CB', '#B0E0E6', '#FFE4E1', '#E0FFFF',
+  '#F5DEB3', '#FFEFD5', '#D8BFD8', '#AFEEEE', '#FAFAD2'
+]
+
+// 表单验证规则
+const authorSettingRules = {
+  channelType: [
+    { max: 50, message: '频道类型不能超过50个字符', trigger: 'blur' }
+  ],
+  backgroundColor: [
+    { 
+      validator: (rule, value, callback) => {
+        if (!value || value.trim() === '') {
+          // 允许空值
+          callback()
+          return
+        }
+        
+        // 支持十六进制格式 #RGB 或 #RRGGBB 或 #RRGGBBAA
+        const hexPattern = /^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/
+        
+        // 支持RGB格式 rgb(255, 255, 255) 或 rgba(255, 255, 255, 0.5)
+        const rgbPattern = /^rgba?\(\s*([01]?\d\d?|2[0-4]\d|25[0-5])\s*,\s*([01]?\d\d?|2[0-4]\d|25[0-5])\s*,\s*([01]?\d\d?|2[0-4]\d|25[0-5])\s*(?:,\s*(0(?:\.\d+)?|1(?:\.0+)?))?\s*\)$/
+        
+        if (!hexPattern.test(value) && !rgbPattern.test(value)) {
+          callback(new Error('请输入有效的颜色代码，格式如：#FF0000 或 rgb(255, 0, 0)'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'blur' 
+    }
+  ],
+  remark: [
+    { max: 200, message: '备注信息不能超过200个字符', trigger: 'blur' }
+  ]
+}
 
 // 加入自选对话框相关数据
 const showCustomDialog = ref(false)
@@ -1475,30 +1904,72 @@ const handleSearch = () => {
   loadMonitorVideos(1)
 }
 
-// 热度异动切换
+// 热度异动筛选
 const toggleHotspotFilter = () => {
-  showHotspotFilter.value = !showHotspotFilter.value
-  
   if (!showHotspotFilter.value) {
-    // 关闭时清空时间筛选
-    startTime.value = ''
-    endTime.value = ''
+    // 首次开启时设置筛选状态
+    showHotspotFilter.value = true
+    ElMessage.success('已开启72H热度异动筛选')
   } else {
-    // 开启时设置72小时前到现在的时间（与API参数保持一致）
-    const seventyTwoHoursAgo = new Date()
-    seventyTwoHoursAgo.setTime(seventyTwoHoursAgo.getTime() - 72 * 60 * 60 * 1000)
-    startTime.value = formatToUTC8TimeString(seventyTwoHoursAgo)
-    
-    const now = new Date()
-    endTime.value = formatToUTC8TimeString(now)
+    // 已开启时只刷新数据
+    ElMessage.success('已刷新72H热度异动数据')
   }
+  
+  // 点击72H热度异动卡片时：starttime是72小时之前，endtime是当前时间
+  // 设置72小时前到现在的时间（与API参数保持一致）
+  const seventyTwoHoursAgo = new Date()
+  seventyTwoHoursAgo.setTime(seventyTwoHoursAgo.getTime() - 72 * 60 * 60 * 1000)
+  startTime.value = formatToUTC8TimeString(seventyTwoHoursAgo)
+  
+  const now = new Date()
+  endTime.value = formatToUTC8TimeString(now)
+  
+  // 清除日期选择器的值，因为点击卡片使用的是动态的72小时时间范围
+  customStartDate.value = ''
+  customEndDate.value = ''
+  
+  // 清除普通筛选状态，避免在72H热度异动筛选时携带其他筛选参数
+  currentFilter.value = 'all'
+  
   // 重置到第一页并重新加载数据
   currentPage.value = 1
   loadMonitorVideos(1)
-  ElMessage.success(showHotspotFilter.value ? '已开启72H热度异动筛选' : '已关闭72H热度异动筛选')
 }
 
-// 时间变化处理
+// 自定义日期变化处理（用于日期选择器）
+const handleCustomDateChange = () => {
+  if (showHotspotFilter.value && customStartDate.value && customEndDate.value) {
+    // 验证日期范围合理性
+    const startDate = new Date(customStartDate.value)
+    const endDate = new Date(customEndDate.value)
+    
+    if (startDate > endDate) {
+      ElMessage.warning('开始日期不能晚于结束日期')
+      return
+    }
+    
+    // 当用户手动选择日期时，设置具体的时间
+    // 开始时间设为00:00:00，结束时间设为23:59:59
+    startDate.setHours(0, 0, 0, 0)
+    endDate.setHours(23, 59, 59, 999)
+    
+    // 更新实际的时间参数为带具体时间的格式
+    startTime.value = formatToUTC8TimeString(startDate)
+    endTime.value = formatToUTC8TimeString(endDate)
+    
+    console.log('用户选择日期范围:', {
+      customStartDate: customStartDate.value,
+      customEndDate: customEndDate.value,
+      startTime: startTime.value,
+      endTime: endTime.value
+    })
+    
+    currentPage.value = 1
+    loadMonitorVideos(1)
+  }
+}
+
+// 原有的时间变化处理（保留用于其他用途）
 const handleTimeChange = () => {
   if (showHotspotFilter.value && startTime.value && endTime.value) {
     currentPage.value = 1
@@ -1518,14 +1989,21 @@ const loadStatistics = async () => {
       musicId: currentMusicId.value
     }
     
-    // 默认添加时间范围参数：统一使用72小时前到现在（UTC+8）
-    const seventyTwoHoursAgo = new Date()
-    seventyTwoHoursAgo.setTime(seventyTwoHoursAgo.getTime() - 72 * 60 * 60 * 1000)
-    params.startTime = formatToUTC8TimeString(seventyTwoHoursAgo)
-    
-    // 设置当前时间为结束时间（UTC+8）
-    const now = new Date()
-    params.endTime = formatToUTC8TimeString(now)
+    // 添加时间范围参数：如果在热度异动模式下，使用设定的时间范围，否则使用默认的72小时前到现在
+    if (showHotspotFilter.value && startTime.value && endTime.value) {
+      // 在热度异动筛选模式下，使用已设置的时间范围
+      params.startTime = startTime.value
+      params.endTime = endTime.value
+    } else {
+      // 默认使用72小时前到现在（UTC+8）
+      const seventyTwoHoursAgo = new Date()
+      seventyTwoHoursAgo.setTime(seventyTwoHoursAgo.getTime() - 72 * 60 * 60 * 1000)
+      params.startTime = formatToUTC8TimeString(seventyTwoHoursAgo)
+      
+      // 设置当前时间为结束时间（UTC+8）
+      const now = new Date()
+      params.endTime = formatToUTC8TimeString(now)
+    }
     
     const response = await monitorApi.getMonitorStatistics(params)
     console.log('Monitor页面: 统计数据API响应:', response)
@@ -1760,6 +2238,8 @@ const filterVideos = (filterType) => {
   showHotspotFilter.value = false
   startTime.value = ''
   endTime.value = ''
+  customStartDate.value = ''
+  customEndDate.value = ''
   
   currentPage.value = 1 // 重置到第一页
   loadMonitorVideos(1) // 重新加载数据
@@ -1809,6 +2289,294 @@ const getTopicsArray = (row) => {
   return []
 }
 
+// 获取热度提醒数据
+const getHotspotAlerts = (row) => {
+  return row.hotspotAlerts || []
+}
+
+// 获取最高等级的热度提醒
+const getHighestLevelAlert = (row) => {
+  const alerts = getHotspotAlerts(row)
+  if (alerts.length === 0) return null
+  
+  // 按alertLevel降序排序，获取最高等级的提醒
+  return alerts.sort((a, b) => b.alertLevel - a.alertLevel)[0]
+}
+
+// 获取热度提醒等级对应的样式类
+const getAlertLevelClass = (alertLevel) => {
+  switch (alertLevel) {
+    case 4: return 'alert-level-extreme'  // 极度爆发
+    case 3: return 'alert-level-high'     // 高度爆发
+    case 2: return 'alert-level-medium'   // 中度飙升
+    case 1: return 'alert-level-low'      // 轻度上涨
+    default: return 'alert-level-none'
+  }
+}
+
+// 获取热度提醒等级对应的颜色
+const getAlertLevelColor = (alertLevel) => {
+  switch (alertLevel) {
+    case 4: return '#ff0000'  // 红色 - 极度爆发
+    case 3: return '#ff4500'  // 橙红色 - 高度爆发
+    case 2: return '#ff8c00'  // 橙色 - 中度飙升
+    case 1: return '#ffa500'  // 黄橙色 - 轻度上涨
+    default: return '#999999'
+  }
+}
+
+// 获取增长率对应的显示文本和样式
+const getGrowthRateInfo = (growthRate) => {
+  if (growthRate >= 100) {
+    return { text: `+${growthRate.toFixed(1)}%`, class: 'growth-extreme', color: '#ff0000' }
+  } else if (growthRate >= 50) {
+    return { text: `+${growthRate.toFixed(1)}%`, class: 'growth-high', color: '#ff4500' }
+  } else if (growthRate >= 20) {
+    return { text: `+${growthRate.toFixed(1)}%`, class: 'growth-medium', color: '#ff8c00' }
+  } else if (growthRate > 0) {
+    return { text: `+${growthRate.toFixed(1)}%`, class: 'growth-low', color: '#ffa500' }
+  } else {
+    return { text: `${growthRate.toFixed(1)}%`, class: 'growth-negative', color: '#999999' }
+  }
+}
+
+// 获取提醒统计信息
+const getAlertStats = (row) => {
+  const alerts = getHotspotAlerts(row)
+  if (alerts.length === 0) return { total: 0, level1: 0, level2: 0, level3: 0, level4: 0 }
+  
+  const stats = { total: alerts.length, level1: 0, level2: 0, level3: 0, level4: 0 }
+  alerts.forEach(alert => {
+    if (alert.alertLevel === 1) stats.level1++
+    else if (alert.alertLevel === 2) stats.level2++
+    else if (alert.alertLevel === 3) stats.level3++
+    else if (alert.alertLevel === 4) stats.level4++
+  })
+  return stats
+}
+
+// 获取最高评分
+const getMaxTriggerScore = (row) => {
+  const alerts = getHotspotAlerts(row)
+  if (alerts.length === 0) return 0
+  
+  return Math.max(...alerts.map(alert => alert.triggerScore || 0))
+}
+
+// 获取最高评分对应的时间窗口
+const getMaxTriggerScoreTimeWindow = (row) => {
+  const alerts = getHotspotAlerts(row)
+  if (alerts.length === 0) return 'short'
+  
+  const maxAlert = alerts.reduce((max, alert) => 
+    (alert.triggerScore || 0) > (max.triggerScore || 0) ? alert : max
+  )
+  return maxAlert.timeWindow || 'short'
+}
+
+// 获取评分样式类（完全模仿HotspotAlert.vue）
+const getTriggerScoreClass = (score, timeWindow) => {
+  if (!score) return 'score-low'
+  
+  // 根据时间窗口设置不同的阈值
+  let lowThreshold, highThreshold
+  
+  switch (timeWindow) {
+    case 'short':
+      lowThreshold = 60
+      highThreshold = 100
+      break
+    case 'medium':
+      lowThreshold = 100
+      highThreshold = 200
+      break
+    case 'long':
+      lowThreshold = 160
+      highThreshold = 320
+      break
+    default:
+      // 如果时间窗口未知，使用短期的阈值
+      lowThreshold = 60
+      highThreshold = 100
+      break
+  }
+  
+  if (score > highThreshold) return 'score-high'
+  if (score >= lowThreshold) return 'score-medium'
+  return 'score-low'
+}
+
+// 格式化评分显示
+const formatTriggerScore = (score) => {
+  return score ? score.toFixed(1) : '0.0'
+}
+
+// 获取等级类型（用于标签显示）
+const getAlertLevelType = (level) => {
+  switch (level) {
+    case 4: return 'danger'     // 极度爆发 - 红色
+    case 3: return 'danger'     // 高度爆发 - 红色
+    case 2: return 'warning'    // 中度飙升 - 橙色
+    case 1: return 'success'    // 轻度上涨 - 绿色
+    default: return 'info'
+  }
+}
+
+// 获取等级文本
+const getAlertLevelText = (level) => {
+  switch (level) {
+    case 4: return '极度爆发'
+    case 3: return '高度爆发'
+    case 2: return '中度飙升'
+    case 1: return '轻度上涨'
+    default: return '未知'
+  }
+}
+
+// 获取时间窗口类型
+const getTimeWindowType = (timeWindow) => {
+  switch (timeWindow) {
+    case 'short': return 'success'
+    case 'medium': return 'warning'
+    case 'long': return 'danger'
+    default: return 'info'
+  }
+}
+
+// 获取时间窗口文本
+const getTimeWindowText = (timeWindow) => {
+  switch (timeWindow) {
+    case 'short': return '短期'
+    case 'medium': return '中期'
+    case 'long': return '长期'
+    default: return '未知'
+  }
+}
+
+// 获取触发指标文本
+const getTriggerMetricText = (triggerMetric) => {
+  switch (triggerMetric) {
+    case 'digg': return '点赞'
+    case 'comment': return '评论'
+    case 'collect': return '收藏'
+    case 'share': return '分享'
+    case 'comprehensive': return '综合'
+    default: return '未知'
+  }
+}
+
+// 格式化增长率
+const formatGrowthRate = (rate) => {
+  return rate ? rate.toFixed(1) : '0.0'
+}
+
+// 计算增长数量
+const calculateGrowth = (current, baseline) => {
+  return (current || 0) - (baseline || 0)
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A'
+  return formatPublishTime(dateString)
+}
+
+// 格式化紧凑日期（用于展开表格）
+const formatCompactDate = (dateString) => {
+  if (!dateString) return 'N/A'
+  
+  try {
+    const date = new Date(dateString)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    
+    // 如果是今天，只显示时间
+    if (targetDate.getTime() === today.getTime()) {
+      return date.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      })
+    }
+    
+    // 如果是昨天，显示"昨天 HH:MM"
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+    if (targetDate.getTime() === yesterday.getTime()) {
+      return '昨天 ' + date.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      })
+    }
+    
+    // 如果是今年，显示"MM-DD HH:MM"
+    if (date.getFullYear() === now.getFullYear()) {
+      return date.toLocaleDateString('zh-CN', { 
+        month: '2-digit', 
+        day: '2-digit' 
+      }) + ' ' + date.toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false
+      })
+    }
+    
+    // 其他情况显示"YYYY-MM-DD HH:MM"
+    return date.toLocaleDateString('zh-CN', { 
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit' 
+    }) + ' ' + date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false
+    })
+  } catch (e) {
+    console.warn('格式化紧凑日期失败:', e)
+    return 'N/A'
+  }
+}
+
+// 查看热度提醒详情
+const showAlertDetailDialog = ref(false)
+const currentAlertDetail = ref(null)
+
+const viewAlertDetail = (alert) => {
+  currentAlertDetail.value = alert
+  showAlertDetailDialog.value = true
+}
+
+const closeAlertDetailDialog = () => {
+  showAlertDetailDialog.value = false
+  currentAlertDetail.value = null
+}
+
+// 删除热度提醒
+const deleteAlert = async (alert) => {
+  try {
+    await ElMessageBox.confirm('确认删除该热度提醒？', '警告', {
+      type: 'warning',
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消'
+    })
+    
+    const response = await monitorApi.deleteHotspotAlert(alert.id)
+    if (response.code === 200) {
+      ElMessage.success('删除成功')
+      // 重新加载数据
+      await loadMonitorVideos(currentPage.value)
+      await loadStatistics()
+    } else {
+      ElMessage.error(response.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
 // 获取清理后的视频描述（去除#内容）
 const getCleanDescription = (row) => {
   // 尝试从多个可能的位置获取desc数据
@@ -1843,10 +2611,6 @@ const formatNumber = (num) => {
   return num.toString()
 }
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return 'N/A'
-  return new Date(dateStr).toLocaleString('zh-CN')
-}
 
 const formatPublishTime = (timestamp) => {
   if (!timestamp) return 'N/A'
@@ -2041,14 +2805,19 @@ const loadMonitorVideos = async (page = 1) => {
     
     // 添加72H热度异动相关参数
     if (showHotspotFilter.value) {
-      // 设置72小时前为开始时间（UTC+8）
-      const seventyTwoHoursAgo = new Date()
-      seventyTwoHoursAgo.setTime(seventyTwoHoursAgo.getTime() - 72 * 60 * 60 * 1000)
-      params.startTime = formatToUTC8TimeString(seventyTwoHoursAgo)
-      
-      // 设置当前时间为结束时间（UTC+8）
-      const now = new Date()
-      params.endTime = formatToUTC8TimeString(now)
+      // 使用startTime和endTime（这些值可能来自卡片点击或日期选择器）
+      if (startTime.value && endTime.value) {
+        params.startTime = startTime.value
+        params.endTime = endTime.value
+      } else {
+        // 如果没有设置时间，则使用默认的72小时前到现在
+        const seventyTwoHoursAgo = new Date()
+        seventyTwoHoursAgo.setTime(seventyTwoHoursAgo.getTime() - 72 * 60 * 60 * 1000)
+        params.startTime = formatToUTC8TimeString(seventyTwoHoursAgo)
+        
+        const now = new Date()
+        params.endTime = formatToUTC8TimeString(now)
+      }
     }
     
     console.log('Monitor页面: 查询参数:', params)
@@ -2101,6 +2870,8 @@ const loadMonitorVideos = async (page = 1) => {
           diggCount: item.latestDiggCount,
           commentCount: item.latestCommentCount
         },
+        // 新增：热度提醒数据（仅在72H热度异动筛选模式下有数据）
+        hotspotAlerts: item.hotspotAlerts || [],
         // 保留原有字段用于兼容
         userMonitor: {
           musicId: item.musicId
@@ -2865,14 +3636,18 @@ const loadAuthorInfo = async (userId) => {
     const response = await authorApi.getAuthorInfo(userId)
     if (response.code === 200) {
       currentAuthor.value = response.data
+      // 同时检查收藏状态
+      await checkFavoriteStatus(userId)
     } else {
       ElMessage.error('获取播主信息失败')
       currentAuthor.value = null
+      authorIsFavorited.value = false
     }
   } catch (error) {
     console.error('获取播主信息失败:', error)
     ElMessage.error('获取播主信息失败')
     currentAuthor.value = null
+    authorIsFavorited.value = false
   } finally {
     authorLoading.value = false
   }
@@ -2881,6 +3656,126 @@ const loadAuthorInfo = async (userId) => {
 const closeAuthorDialog = () => {
   showAuthorDialog.value = false
   currentAuthor.value = null
+  authorIsFavorited.value = false
+}
+
+// 检查收藏状态
+const checkFavoriteStatus = async (authorUserId) => {
+  if (!authStore.user?.id) return
+  
+  try {
+    const response = await favoriteApi.checkFavoriteStatus(authStore.user.id, authorUserId)
+    if (response.success) {
+      authorIsFavorited.value = response.data || false
+    }
+  } catch (error) {
+    console.error('检查收藏状态失败:', error)
+    authorIsFavorited.value = false
+  }
+}
+
+// 切换收藏状态
+const toggleAuthorFavorite = async () => {
+  if (!currentAuthor.value?.userId || !authStore.user?.id) {
+    ElMessage.error('用户或播主信息不完整')
+    return
+  }
+
+  if (authorIsFavorited.value) {
+    // 取消收藏
+    favoriteLoading.value = true
+    try {
+      const response = await favoriteApi.removeFavorite(authStore.user.id, currentAuthor.value.userId)
+      if (response.success) {
+        authorIsFavorited.value = false
+        ElMessage.success('取消收藏成功')
+      } else {
+        ElMessage.error(response.message || '取消收藏失败')
+      }
+    } catch (error) {
+      console.error('取消收藏失败:', error)
+      ElMessage.error('取消收藏失败，请稍后重试')
+    } finally {
+      favoriteLoading.value = false
+    }
+  } else {
+    // 添加收藏 - 弹出设置对话框
+    openAuthorSettingDialog()
+  }
+}
+
+// 打开播主设置对话框
+const openAuthorSettingDialog = () => {
+  // 重置表单
+  authorSettingForm.value = {
+    channelType: currentAuthor.value?.channelType || '',
+    authorLevel: currentAuthor.value?.authorLevel || 1,
+    backgroundColor: currentAuthor.value?.backgroundColor || '',
+    remark: ''
+  }
+  showAuthorSettingDialog.value = true
+}
+
+// 关闭播主设置对话框
+const closeAuthorSettingDialog = () => {
+  showAuthorSettingDialog.value = false
+  authorSettingForm.value = {
+    channelType: '',
+    authorLevel: 1,
+    backgroundColor: '',
+    remark: ''
+  }
+}
+
+// 确认播主设置并收藏
+const confirmAuthorSetting = async () => {
+  if (!authorSettingFormRef.value) return
+  
+  // 验证表单
+  try {
+    await authorSettingFormRef.value.validate()
+  } catch (error) {
+    return
+  }
+
+  if (!currentAuthor.value?.userId || !authStore.user?.id) {
+    ElMessage.error('用户或播主信息不完整')
+    return
+  }
+
+  favoriteLoading.value = true
+  try {
+    // 调用API添加收藏，携带额外参数
+    const params = {
+      userId: authStore.user.id,
+      authorUserId: currentAuthor.value.userId,
+      ...authorSettingForm.value
+    }
+    
+    // 清理空值
+    Object.keys(params).forEach(key => {
+      if (params[key] === '' || params[key] === null || params[key] === undefined) {
+        delete params[key]
+      }
+    })
+
+    const response = await favoriteApi.addFavoriteWithSettings(params)
+    if (response.success) {
+      authorIsFavorited.value = true
+      showAuthorSettingDialog.value = false
+      ElMessage.success('收藏成功')
+      
+      // 重置表单
+      closeAuthorSettingDialog()
+    } else {
+      ElMessage.error(response.message || '收藏失败')
+    }
+  } catch (error) {
+    console.error('收藏操作失败:', error)
+    ElMessage.error('收藏失败，请稍后重试')
+  } finally {
+    favoriteLoading.value = false
+  }
 }
 
 // 加入自选相关函数
@@ -3171,9 +4066,23 @@ onMounted(async () => {
   }
   if (route.query.startTime) {
     startTime.value = route.query.startTime
+    // 从startTime中提取日期部分给日期选择器
+    try {
+      const startDate = new Date(startTime.value)
+      customStartDate.value = startDate.toISOString().split('T')[0]
+    } catch (e) {
+      console.warn('解析开始时间失败:', e)
+    }
   }
   if (route.query.endTime) {
     endTime.value = route.query.endTime
+    // 从endTime中提取日期部分给日期选择器
+    try {
+      const endDate = new Date(endTime.value)
+      customEndDate.value = endDate.toISOString().split('T')[0]
+    } catch (e) {
+      console.warn('解析结束时间失败:', e)
+    }
   }
   
   await loadMonitorVideos(currentPage.value)
@@ -3307,14 +4216,7 @@ onUnmounted(() => {
 }
 
 .toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 12px; /* 更靠近监控列表 */
-  padding: 16px 20px;
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e6e8eb;
 }
 
 /* 区块轻分割线 */
@@ -3327,37 +4229,67 @@ onUnmounted(() => {
 .toolbar-left {
   display: flex;
   gap: 12px;
+  align-items: center;
 }
 
-/* 普通模式的搜索控件样式 */
-.normal-search-controls {
+/* 旧的普通模式搜索控件样式（将被新样式覆盖） */
+.old-normal-search-controls {
   display: flex;
   align-items: center;
 }
 
-/* 热度异动模式的搜索控件样式 */
-.hotspot-search-controls {
+/* 热度异动模式的工具栏布局 */
+.hotspot-toolbar-layout {
+  padding: 16px;
+  background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.hotspot-main-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.hotspot-main-controls {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
-.hotspot-search-controls .time-range-controls {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 6px 12px;
-  background-color: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-}
-
-.hotspot-search-controls .time-separator {
+.time-separator {
   color: #6b7280;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  margin: 0 2px;
+  margin: 0 4px;
+}
+
+/* 普通模式的工具栏布局 */
+.normal-toolbar-layout {
+  padding: 16px;
+  background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.normal-main-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.normal-main-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
 }
 
 .stats-row {
@@ -3391,9 +4323,9 @@ onUnmounted(() => {
 }
 
 .stat-card.hotspot .stat-icon {
-  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
   transition: all 0.3s ease;
 }
 
@@ -3404,8 +4336,8 @@ onUnmounted(() => {
 }
 
 .stat-card.hotspot:hover .stat-icon {
-  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
   transform: scale(1.05);
 }
 
@@ -3430,9 +4362,9 @@ onUnmounted(() => {
 }
 
 .stat-card.auto .stat-icon {
-  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
   transition: all 0.3s ease;
 }
 
@@ -3443,8 +4375,8 @@ onUnmounted(() => {
 }
 
 .stat-card.auto:hover .stat-icon {
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
   transform: scale(1.05);
 }
 
@@ -3458,15 +4390,15 @@ onUnmounted(() => {
 }
 
 .stat-card.auto.is-active {
-  border: 2px solid rgba(16, 185, 129, 0.4);
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.2);
-  background: linear-gradient(135deg, rgba(236, 253, 245, 0.5) 0%, rgba(209, 250, 229, 0.3) 100%);
-}
-
-.stat-card.hotspot.is-active {
   border: 2px solid rgba(245, 158, 11, 0.4);
   box-shadow: 0 6px 16px rgba(245, 158, 11, 0.2);
   background: linear-gradient(135deg, rgba(255, 251, 235, 0.5) 0%, rgba(254, 243, 199, 0.3) 100%);
+}
+
+.stat-card.hotspot.is-active {
+  border: 2px solid rgba(239, 68, 68, 0.4);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.2);
+  background: linear-gradient(135deg, rgba(254, 242, 242, 0.5) 0%, rgba(254, 202, 202, 0.3) 100%);
 }
 
 .stat-icon {
@@ -3543,35 +4475,20 @@ onUnmounted(() => {
   color: #374151;
 }
 
-/* 自选视频容器样式 */
-.custom-video-container {
+/* 通用视频ID容器样式 */
+.video-id-container {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
-  background: linear-gradient(135deg, #d1fae5 0%, #ecfdf5 100%);
-  border: 1px solid #a7f3d0;
   border-radius: 6px;
   transition: all 0.2s ease;
-}
-
-.custom-video-container:hover {
-  background: linear-gradient(135deg, #a7f3d0 0%, #d1fae5 100%);
-  border-color: #6ee7b7;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.15);
 }
 
 /* 72H热度异动视频容器样式 */
 .hotspot-video-container {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
-  border: 1px solid #fbbf24;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  background: linear-gradient(135deg, #fecaca 0%, #fef2f2 100%);
+  border: 1px solid #f87171;
   position: relative;
   overflow: hidden;
 }
@@ -3583,7 +4500,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%);
+  background: linear-gradient(90deg, #ef4444 0%, #f87171 50%, #ef4444 100%);
   animation: hotspotGlow 2s ease-in-out infinite alternate;
 }
 
@@ -3597,10 +4514,10 @@ onUnmounted(() => {
 }
 
 .hotspot-video-container:hover {
-  background: linear-gradient(135deg, #fbbf24 0%, #fef3c7 100%);
-  border-color: #f59e0b;
+  background: linear-gradient(135deg, #f87171 0%, #fecaca 100%);
+  border-color: #ef4444;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(251, 191, 36, 0.25);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.25);
 }
 
 .hotspot-video-icon {
@@ -3611,30 +4528,106 @@ onUnmounted(() => {
 
 /* 72H热度异动视频ID样式 */
 .hotspot-video-id {
-  color: #b45309 !important;
+  color: #dc2626 !important;
   font-weight: 700 !important;
-  text-shadow: 0 1px 2px rgba(180, 83, 9, 0.1);
+  text-shadow: 0 1px 2px rgba(220, 38, 38, 0.1);
 }
 
 .hotspot-video-id:hover {
-  color: #92400e !important;
+  color: #b91c1c !important;
   text-decoration: underline;
 }
 
 .custom-video-icon {
-  color: #059669;
+  color: #f59e0b;
   flex-shrink: 0;
+  transition: color 0.2s ease;
+  fill: currentColor;
 }
 
-/* 自选视频的视频ID绿色样式 */
-.custom-video-id {
-  color: #059669 !important;
-  font-weight: 700 !important;
+.custom-video-icon:hover {
+  color: #d97706;
 }
 
-.custom-video-id:hover {
-  color: #047857 !important;
-  text-decoration: underline;
+.custom-icon-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* 播主头像区域样式 */
+.author-avatar-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.author-avatar {
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.author-basic-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.author-basic-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
+  word-break: break-word;
+}
+
+.author-basic-info .user-id {
+  margin: 0 0 16px 0;
+  color: #64748b;
+  font-size: 14px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.author-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.stat-item .el-icon {
+  font-size: 16px;
+  color: #6b7280;
+}
+
+/* 详细信息区域样式 */
+.author-details {
+  margin-top: 16px;
+}
+
+.author-description {
+  line-height: 1.6;
+  color: #374151;
+  word-break: break-word;
 }
 
 .video-url {
@@ -3998,10 +4991,39 @@ onUnmounted(() => {
   padding: 24px;
 }
 
+/* 播主设置对话框样式 */
+.color-picker-container {
+  display: flex;
+  align-items: center;
+}
+
+.color-picker-container .el-color-picker {
+  width: 40px;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+}
+
+:deep(.el-radio-group) {
+  display: flex;
+  gap: 16px;
+}
+
+:deep(.el-select) {
+  width: 100%;
+}
+
 :deep(.el-table) {
   border-radius: 8px;
   overflow: hidden;
+  width: 100%;
 }
+
+:deep(.el-table .el-table__expanded-cell) {
+  padding: 0 !important;
+}
+
 
 :deep(.el-table th) {
   background: #fafbfc;
@@ -4583,6 +5605,275 @@ onUnmounted(() => {
   padding: 12px 24px;
   font-size: 14px;
   border-radius: 8px;
+}
+
+/* 热度提醒相关样式（模仿HotspotAlert.vue） */
+.alert-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.total-alerts {
+  font-weight: 600;
+  color: #374151;
+  font-size: 13px;
+}
+
+.level-stats {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.level-stats .el-tag {
+  margin: 0 !important;
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+}
+
+/* 触发评分样式（完全模仿HotspotAlert.vue） */
+.trigger-score {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.trigger-score .score-text {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.score-high {
+  color: #ef4444; /* 红色：高热度 */
+  background-color: rgba(239, 68, 68, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.score-medium {
+  color: #f59e0b; /* 黄色：中等热度 */
+  background-color: rgba(245, 158, 11, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.score-low {
+  color: #10b981; /* 绿色：低热度 */
+  background-color: rgba(16, 185, 129, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* 展开表格样式（模仿HotspotAlert.vue） */
+.expand-content {
+  padding: 20px 520px 20px 110px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-left: 4px solid #3b82f6;
+  margin: 0;
+  position: relative;
+}
+
+.expand-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, #e2e8f0 50%, transparent 100%);
+}
+
+.expand-table {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.time-text {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.growth-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+}
+
+.growth-detail .growth-rate {
+  font-size: 11px;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+.growth-detail .growth-count {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.expand-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 优化展开表格中的标签样式 */
+:deep(.expand-table .el-tag) {
+  border-radius: 6px;
+  font-weight: 500;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 展开表格中的触发评分样式 */
+:deep(.expand-table .score-text) {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* ===== 简洁热度提醒详情对话框样式 ===== */
+
+/* 简洁对话框内容 */
+.simple-alert-content {
+  padding: 0;
+}
+
+/* 基本信息区域 */
+.alert-info-section {
+  margin-bottom: 20px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+  min-width: 80px;
+}
+
+.info-value {
+  font-size: 13px;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.score-badge.simple {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.score-badge.simple.score-high {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.score-badge.simple.score-medium {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.score-badge.simple.score-low {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+/* 数据区域 */
+.data-section {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.section-header {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.data-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.data-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.data-row:last-child {
+  border-bottom: none;
+}
+
+.data-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 60px;
+}
+
+.data-icon {
+  font-size: 16px;
+}
+
+.data-label span:last-child {
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.data-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.baseline {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.arrow {
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.current {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.growth.positive {
+  color: #059669;
+  font-weight: 600;
+  background: rgba(5, 150, 105, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 

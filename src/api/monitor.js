@@ -160,5 +160,13 @@ export const monitorApi = {
       url: `/investment/video/${awemeId}`,
       method: 'get'
     })
+  },
+
+  // 删除热度提醒
+  deleteHotspotAlert(id) {
+    return request({
+      url: `/hotspot-alert/${id}`,
+      method: 'delete'
+    })
   }
 }

@@ -36,6 +36,10 @@
             <el-icon><Headset /></el-icon>
             <span>音乐管理</span>
           </el-menu-item>
+          <el-menu-item index="/favorite-author" class="menu-item">
+            <el-icon><Star /></el-icon>
+            <span>收藏播主</span>
+          </el-menu-item>
         </el-menu>
       </nav>
 
@@ -797,7 +801,8 @@ import {
   ChatDotRound,
   DataAnalysis,
   Collection,
-  Share
+  Share,
+  Star
 } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'

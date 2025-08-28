@@ -41,6 +41,12 @@ const routes = [
     name: 'HotspotAlert',
     component: () => import('@/views/HotspotAlert.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/favorite-author',
+    name: 'FavoriteAuthor',
+    component: () => import('@/views/FavoriteAuthor.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
