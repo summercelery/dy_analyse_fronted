@@ -555,16 +555,35 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="播主名称" width="115">
+              <el-table-column label="播主名称" width="130">
                 <template #default="{ row }">
-                  <div class="author-name">
-                    <el-link 
-                      type="primary" 
-                      class="author-nickname"
+                  <div 
+                    class="author-name"
+                    :style="{ 
+                      backgroundColor: row.backgroundColor || 'transparent',
+                      padding: '4px 6px',
+                      borderRadius: '6px',
+                      display: 'block',
+                      width: 'fit-content',
+                      maxWidth: '100%',
+                      transition: 'all 0.3s ease'
+                    }"
+                    @mouseenter="$event.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)'"
+                    @mouseleave="$event.target.style.boxShadow = 'none'"
+                  >
+                    <span 
+                      class="author-nickname-link"
+                      :style="{ 
+                        color: '#409eff',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        fontSize: '12px',
+                        textDecoration: 'none'
+                      }"
                       @click.stop="goToAuthor(row)"
                     >
-                      {{ row.authorInfo?.nickname || row.videoInfo?.authorId || 'N/A' }}
-                    </el-link>
+                      {{ row.authorInfo?.nickname || row.authorName || row.videoInfo?.authorId || 'N/A' }}
+                    </span>
                     <el-tag
                       v-if="row.authorInfo?.followerCount"
                       size="small"
@@ -1263,6 +1282,29 @@
             <div class="author-basic-info">
               <h3>{{ currentAuthor.nickname || '未知播主' }}</h3>
               <p class="user-id">{{ currentAuthor.userId || 'N/A' }}</p>
+              
+              <!-- 收藏信息标签（仅在已收藏时显示） -->
+              <div v-if="authorIsFavorited && currentFavoriteInfo" class="favorite-tags">
+                <el-tag v-if="currentFavoriteInfo.channelType" type="primary" size="small" class="info-tag">
+                  {{ currentFavoriteInfo.channelType }}
+                </el-tag>
+                <el-tag 
+                  v-if="currentFavoriteInfo.authorLevel" 
+                  :type="getAuthorLevelType(currentFavoriteInfo.authorLevel)" 
+                  size="small"
+                  class="info-tag"
+                >
+                  {{ getAuthorLevelText(currentFavoriteInfo.authorLevel) }}
+                </el-tag>
+                <div v-if="currentFavoriteInfo.backgroundColor" class="color-tag">
+                  <div 
+                    class="color-indicator" 
+                    :style="{ backgroundColor: currentFavoriteInfo.backgroundColor }"
+                    :title="currentFavoriteInfo.backgroundColor"
+                  ></div>
+                </div>
+              </div>
+              
               <div class="author-stats">
                 <span class="stat-item">
                   <el-icon><User /></el-icon>
@@ -1277,7 +1319,7 @@
           </div>
           
           <!-- 详细信息区域 -->
-          <div v-if="currentAuthor.userDesc || currentAuthor.userUrl" class="author-details">
+          <div v-if="currentAuthor.userDesc || currentAuthor.userUrl || (authorIsFavorited && currentFavoriteInfo?.remark)" class="author-details">
             <el-descriptions :column="1" border>
               <el-descriptions-item v-if="currentAuthor.userDesc" label="播主描述">
                 <div class="author-description">{{ currentAuthor.userDesc }}</div>
@@ -1292,6 +1334,13 @@
                   {{ currentAuthor.userUrl }}
                 </el-link>
               </el-descriptions-item>
+              
+              <!-- 只显示备注信息 -->
+              <el-descriptions-item v-if="authorIsFavorited && currentFavoriteInfo?.remark" label="备注信息">
+                <div class="remark-display">
+                  {{ currentFavoriteInfo.remark }}
+                </div>
+              </el-descriptions-item>
             </el-descriptions>
           </div>
         </div>
@@ -1301,12 +1350,120 @@
       <template #footer>
         <el-button @click="closeAuthorDialog">关闭</el-button>
         <el-button 
+          v-if="authorIsFavorited && currentAuthor?.userId"
+          type="warning"
+          :icon="Edit"
+          @click="editAuthorFromDialog"
+        >
+          编辑设置
+        </el-button>
+        <el-button 
           v-if="currentAuthor?.userId"
-          :type="authorIsFavorited ? 'warning' : 'primary'"
+          :type="authorIsFavorited ? 'danger' : 'primary'"
           :loading="favoriteLoading"
           @click="toggleAuthorFavorite"
         >
           {{ authorIsFavorited ? '取消收藏' : '收藏播主' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 编辑播主设置对话框 -->
+    <el-dialog
+      v-model="showEditSettingsDialog"
+      title="编辑播主设置"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="editForm" label-width="100px" :rules="editFormRules" ref="editFormRef">
+        <el-form-item label="播主昵称">
+          <el-input :value="currentEditAuthor?.authorNickname || ''" disabled />
+        </el-form-item>
+        
+        <el-form-item label="频道类型" prop="channelType">
+          <el-select 
+            v-model="editForm.channelType" 
+            placeholder="请选择频道类型"
+            style="width: 100%"
+            clearable
+            filterable
+            allow-create
+          >
+            <el-option label="美食" value="美食" />
+            <el-option label="美妆" value="美妆" />
+            <el-option label="时尚" value="时尚" />
+            <el-option label="娱乐" value="娱乐" />
+            <el-option label="音乐" value="音乐" />
+            <el-option label="舞蹈" value="舞蹈" />
+            <el-option label="游戏" value="游戏" />
+            <el-option label="科技" value="科技" />
+            <el-option label="教育" value="教育" />
+            <el-option label="旅游" value="旅游" />
+            <el-option label="汽车" value="汽车" />
+            <el-option label="体育" value="体育" />
+            <el-option label="生活" value="生活" />
+            <el-option label="搞笑" value="搞笑" />
+            <el-option label="知识" value="知识" />
+            <el-option label="其他" value="其他" />
+          </el-select>
+        </el-form-item>
+        
+        <el-form-item label="播主等级" prop="authorLevel">
+          <el-radio-group v-model="editForm.authorLevel">
+            <el-radio :value="1">普通</el-radio>
+            <el-radio :value="2">优质</el-radio>
+            <el-radio :value="3">顶级</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        
+        <el-form-item label="背景颜色" prop="backgroundColor">
+          <div class="color-selection-container">
+            <div class="color-palette">
+              <div class="color-group">
+                <div class="group-label">选择背景颜色</div>
+                <div class="color-row">
+                  <div 
+                    v-for="color in ['#E3F2FD', '#FFF3E0', '#E8F5E8', '#FCE4EC', '#F3E5F5', '#FFFDE7', '#E0F7FA', '#FFF8E1', '#EFEBE9', '#F1F8E9']" 
+                    :key="color"
+                    class="color-option" 
+                    :class="{ active: editForm.backgroundColor === color }"
+                    :style="{ backgroundColor: color }"
+                    @click="editForm.backgroundColor = color"
+                    :title="color"
+                  ></div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="selected-color-display" v-if="editForm.backgroundColor">
+              <span class="selected-label">已选择：</span>
+              <div 
+                class="selected-color-preview" 
+                :style="{ backgroundColor: editForm.backgroundColor }"
+                :title="editForm.backgroundColor"
+              ></div>
+              <span class="selected-value">{{ editForm.backgroundColor }}</span>
+              <el-button size="small" text @click="editForm.backgroundColor = ''">清除</el-button>
+            </div>
+          </div>
+        </el-form-item>
+        
+        <el-form-item label="备注信息" prop="remark">
+          <el-input
+            v-model="editForm.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入备注信息，如：优质美食博主"
+            maxlength="200"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <el-button @click="closeEditSettingsDialog">取消</el-button>
+        <el-button type="primary" @click="confirmEditSettings" :loading="editSettingsLoading">
+          保存设置
         </el-button>
       </template>
     </el-dialog>
@@ -1360,17 +1517,34 @@
         </el-form-item>
         
         <el-form-item label="背景颜色" prop="backgroundColor">
-          <div class="color-picker-container">
-            <el-color-picker 
-              v-model="authorSettingForm.backgroundColor"
-              show-alpha
-              :predefine="predefineColors"
-            />
-            <el-input 
-              v-model="authorSettingForm.backgroundColor" 
-              placeholder="如：#FFB6C1"
-              style="width: 200px; margin-left: 12px;"
-            />
+          <div class="color-selection-container">
+            <div class="color-palette">
+              <div class="color-group">
+                <div class="group-label">选择背景颜色</div>
+                <div class="color-row">
+                  <div 
+                    v-for="color in ['#E3F2FD', '#FFF3E0', '#E8F5E8', '#FCE4EC', '#F3E5F5', '#FFFDE7', '#E0F7FA', '#FFF8E1', '#EFEBE9', '#F1F8E9']" 
+                    :key="color"
+                    class="color-option" 
+                    :class="{ active: authorSettingForm.backgroundColor === color }"
+                    :style="{ backgroundColor: color }"
+                    @click="authorSettingForm.backgroundColor = color"
+                    :title="color"
+                  ></div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="selected-color-display" v-if="authorSettingForm.backgroundColor">
+              <span class="selected-label">已选择：</span>
+              <div 
+                class="selected-color-preview" 
+                :style="{ backgroundColor: authorSettingForm.backgroundColor }"
+                :title="authorSettingForm.backgroundColor"
+              ></div>
+              <span class="selected-value">{{ authorSettingForm.backgroundColor }}</span>
+              <el-button size="small" text @click="authorSettingForm.backgroundColor = ''">清除</el-button>
+            </div>
           </div>
         </el-form-item>
         
@@ -1816,6 +1990,19 @@ const authorLoading = ref(false)
 const currentAuthor = ref(null)
 const favoriteLoading = ref(false)
 const authorIsFavorited = ref(false)
+const currentFavoriteInfo = ref(null)
+
+// 编辑播主设置对话框相关数据
+const showEditSettingsDialog = ref(false)
+const editFormRef = ref(null)
+const editForm = ref({
+  channelType: '',
+  authorLevel: 1,
+  backgroundColor: '',
+  remark: ''
+})
+const currentEditAuthor = ref(null)
+const editSettingsLoading = ref(false)
 
 // 播主设置对话框相关数据
 const showAuthorSettingDialog = ref(false)
@@ -1827,12 +2014,49 @@ const authorSettingForm = ref({
   remark: ''
 })
 
-// 预定义颜色选项
-const predefineColors = [
-  '#FFB6C1', '#FFA07A', '#98FB98', '#87CEEB', '#DDA0DD',
-  '#F0E68C', '#FFC0CB', '#B0E0E6', '#FFE4E1', '#E0FFFF',
-  '#F5DEB3', '#FFEFD5', '#D8BFD8', '#AFEEEE', '#FAFAD2'
+// 适合蓝色文字的背景颜色 - 优雅版
+const backgroundColors = [
+  '#E3F2FD', // 淡蓝色 - 与蓝字和谐
+  '#FFF3E0', // 淡橙色 - 温暖对比
+  '#E8F5E8', // 淡绿色 - 清新挂皮
+  '#FCE4EC', // 淡粉色 - 温柔美观
+  '#F3E5F5', // 淡紫色 - 优雅高级
+  '#FFFDE7', // 淡黄色 - 明亮清晰
+  '#E0F7FA', // 淡青色 - 清新自然
+  '#FFF8E1', // 米白色 - 简洁大方
+  '#EFEBE9', // 暖灰色 - 低调内敛
+  '#F1F8E9'  // 淡绿白 - 清雅淡然
 ]
+
+// 编辑表单验证规则
+const editFormRules = {
+  channelType: [
+    { max: 50, message: '频道类型不能超过50个字符', trigger: 'blur' }
+  ],
+  backgroundColor: [
+    { 
+      validator: (rule, value, callback) => {
+        if (!value || value.trim() === '') {
+          callback()
+          return
+        }
+        
+        const hexPattern = /^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/
+        const rgbPattern = /^rgba?\(\s*([01]?\d\d?|2[0-4]\d|25[0-5])\s*,\s*([01]?\d\d?|2[0-4]\d|25[0-5])\s*,\s*([01]?\d\d?|2[0-4]\d|25[0-5])\s*(?:,\s*(0(?:\.\d+)?|1(?:\.0+)?))?\s*\)$/
+        
+        if (!hexPattern.test(value) && !rgbPattern.test(value)) {
+          callback(new Error('请输入有效的颜色代码，格式如：#FF0000 或 rgb(255, 0, 0)'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'blur' 
+    }
+  ],
+  remark: [
+    { max: 200, message: '备注信息不能超过200个字符', trigger: 'blur' }
+  ]
+}
 
 // 表单验证规则
 const authorSettingRules = {
@@ -2872,6 +3096,11 @@ const loadMonitorVideos = async (page = 1) => {
         },
         // 新增：热度提醒数据（仅在72H热度异动筛选模式下有数据）
         hotspotAlerts: item.hotspotAlerts || [],
+        
+        // 新增：播主相关设置字段
+        backgroundColor: item.backgroundColor,
+        authorLevel: item.authorLevel,
+        channelType: item.channelType,
         // 保留原有字段用于兼容
         userMonitor: {
           musicId: item.musicId
@@ -3630,24 +3859,56 @@ const formatAuthorNumber = (num) => {
   return num.toString()
 }
 
+// 获取播主等级类型
+const getAuthorLevelType = (level) => {
+  switch (level) {
+    case 1: return 'info'    // 普通
+    case 2: return 'success' // 优质  
+    case 3: return 'warning' // 顶级
+    default: return 'info'
+  }
+}
+
+// 获取播主等级文本
+const getAuthorLevelText = (level) => {
+  switch (level) {
+    case 1: return '普通'
+    case 2: return '优质'
+    case 3: return '顶级'
+    default: return '未知'
+  }
+}
+
 const loadAuthorInfo = async (userId) => {
   authorLoading.value = true
   try {
     const response = await authorApi.getAuthorInfo(userId)
-    if (response.code === 200) {
-      currentAuthor.value = response.data
-      // 同时检查收藏状态
-      await checkFavoriteStatus(userId)
+    if (response.success || response.code === 200) {
+      currentAuthor.value = {
+        id: response.data.id, // 数据库主键ID
+        userId: response.data.userId,
+        nickname: response.data.nickname,
+        authorAvatar: response.data.authorAvatar,
+        userDesc: response.data.userDesc,
+        userUrl: response.data.userUrl,
+        followerCount: response.data.followerCount,
+        totalFavorited: response.data.totalFavorited
+      }
+      
+      // 检查收藏状态
+      await checkFavoriteStatusAndInfo(currentAuthor.value.id)
     } else {
-      ElMessage.error('获取播主信息失败')
+      ElMessage.error(response.message || '获取播主信息失败')
       currentAuthor.value = null
       authorIsFavorited.value = false
+      currentFavoriteInfo.value = null
     }
   } catch (error) {
     console.error('获取播主信息失败:', error)
     ElMessage.error('获取播主信息失败')
     currentAuthor.value = null
     authorIsFavorited.value = false
+    currentFavoriteInfo.value = null
   } finally {
     authorLoading.value = false
   }
@@ -3657,20 +3918,69 @@ const closeAuthorDialog = () => {
   showAuthorDialog.value = false
   currentAuthor.value = null
   authorIsFavorited.value = false
+  currentFavoriteInfo.value = null
 }
 
 // 检查收藏状态
-const checkFavoriteStatus = async (authorUserId) => {
+const checkFavoriteStatus = async (authorId) => {
   if (!authStore.user?.id) return
   
   try {
-    const response = await favoriteApi.checkFavoriteStatus(authStore.user.id, authorUserId)
+    const response = await favoriteApi.checkFavoriteStatus(authorId)
     if (response.success) {
-      authorIsFavorited.value = response.data || false
+      authorIsFavorited.value = response.isFavorite || false
     }
   } catch (error) {
     console.error('检查收藏状态失败:', error)
     authorIsFavorited.value = false
+  }
+}
+
+// 检查收藏状态并获取收藏信息
+const checkFavoriteStatusAndInfo = async (authorId) => {
+  if (!authStore.user?.id) return
+  
+  try {
+    const response = await favoriteApi.checkFavoriteStatus(authorId)
+    if (response.success) {
+      authorIsFavorited.value = response.isFavorite || false
+      
+      // 如果已收藏，需要获取收藏列表来找到对应的收藏信息
+      if (authorIsFavorited.value) {
+        try {
+          const favoriteResponse = await favoriteApi.getFavoriteList(1, 100, {})
+          if (favoriteResponse.success) {
+            const favoriteItems = Array.isArray(favoriteResponse.data.list) 
+              ? favoriteResponse.data.list 
+              : []
+            
+            const favoriteItem = favoriteItems.find(item => 
+              item.authorId === authorId
+            )
+            
+            if (favoriteItem) {
+              currentFavoriteInfo.value = {
+                channelType: favoriteItem.channelType,
+                authorLevel: favoriteItem.authorLevel,
+                backgroundColor: favoriteItem.backgroundColor,
+                remark: favoriteItem.remark
+              }
+            } else {
+              currentFavoriteInfo.value = null
+            }
+          }
+        } catch (favoriteError) {
+          console.error('获取收藏信息失败:', favoriteError)
+          currentFavoriteInfo.value = null
+        }
+      } else {
+        currentFavoriteInfo.value = null
+      }
+    }
+  } catch (error) {
+    console.error('检查收藏状态失败:', error)
+    authorIsFavorited.value = false
+    currentFavoriteInfo.value = null
   }
 }
 
@@ -3685,7 +3995,12 @@ const toggleAuthorFavorite = async () => {
     // 取消收藏
     favoriteLoading.value = true
     try {
-      const response = await favoriteApi.removeFavorite(authStore.user.id, currentAuthor.value.userId)
+      if (!currentAuthor.value.id) {
+        ElMessage.error('播主ID不完整，无法取消收藏')
+        return
+      }
+      
+      const response = await favoriteApi.removeFavorite(currentAuthor.value.id)
       if (response.success) {
         authorIsFavorited.value = false
         ElMessage.success('取消收藏成功')
@@ -3727,6 +4042,67 @@ const closeAuthorSettingDialog = () => {
   }
 }
 
+// 编辑设置相关函数
+const closeEditSettingsDialog = () => {
+  showEditSettingsDialog.value = false
+  currentEditAuthor.value = null
+  editForm.value = {
+    channelType: '',
+    authorLevel: 1,
+    backgroundColor: '',
+    remark: ''
+  }
+}
+
+const confirmEditSettings = async () => {
+  if (!editFormRef.value) return
+  
+  try {
+    await editFormRef.value.validate()
+  } catch (error) {
+    return
+  }
+
+  if (!currentEditAuthor.value?.id) {
+    ElMessage.error('播主信息不完整')
+    return
+  }
+
+  editSettingsLoading.value = true
+  try {
+    const favoriteConfigData = {
+      id: currentEditAuthor.value.id, // 使用收藏关系ID
+      ...editForm.value
+    }
+    
+    // 清理空值
+    Object.keys(favoriteConfigData).forEach(key => {
+      if (favoriteConfigData[key] === '' || favoriteConfigData[key] === null || favoriteConfigData[key] === undefined) {
+        delete favoriteConfigData[key]
+      }
+    })
+
+    const response = await favoriteApi.updateFavoriteConfig(favoriteConfigData)
+    if (response.success) {
+      showEditSettingsDialog.value = false
+      ElMessage.success('收藏配置更新成功')
+      closeEditSettingsDialog()
+      
+      // 刷新播主信息和收藏状态
+      if (currentAuthor.value?.userId) {
+        await checkFavoriteStatusAndInfo(currentAuthor.value.id)
+      }
+    } else {
+      ElMessage.error(response.message || '收藏配置更新失败')
+    }
+  } catch (error) {
+    console.error('更新收藏配置失败:', error)
+    ElMessage.error('更新收藏配置失败，请稍后重试')
+  } finally {
+    editSettingsLoading.value = false
+  }
+}
+
 // 确认播主设置并收藏
 const confirmAuthorSetting = async () => {
   if (!authorSettingFormRef.value) return
@@ -3738,7 +4114,7 @@ const confirmAuthorSetting = async () => {
     return
   }
 
-  if (!currentAuthor.value?.userId || !authStore.user?.id) {
+  if (!currentAuthor.value?.id || !authStore.user?.id) {
     ElMessage.error('用户或播主信息不完整')
     return
   }
@@ -3747,8 +4123,7 @@ const confirmAuthorSetting = async () => {
   try {
     // 调用API添加收藏，携带额外参数
     const params = {
-      userId: authStore.user.id,
-      authorUserId: currentAuthor.value.userId,
+      authorId: currentAuthor.value.id, // 使用 authorId
       ...authorSettingForm.value
     }
     
@@ -3992,6 +4367,48 @@ const goToAuthor = (row) => {
     loadAuthorInfo(userId)
   } else {
     ElMessage.warning('无法获取播主ID')
+  }
+}
+
+// 从播主详情对话框打开编辑设置
+const editAuthorFromDialog = async () => {
+  if (!currentAuthor.value?.userId) {
+    ElMessage.warning('播主信息不完整，无法编辑')
+    return
+  }
+  
+  try {
+    // 获取收藏列表来找到对应的收藏信息
+    const favoriteResponse = await favoriteApi.getFavoriteList(1, 100, {})
+    if (favoriteResponse.success) {
+      const favoriteItems = Array.isArray(favoriteResponse.data.list) 
+        ? favoriteResponse.data.list 
+        : []
+      
+      const favoriteItem = favoriteItems.find(item => 
+        item.authorUserId === currentAuthor.value.userId
+      )
+      
+      if (favoriteItem) {
+        // 设置当前编辑的收藏项（包含收藏关系ID）
+        currentEditAuthor.value = favoriteItem
+        
+        // 填充编辑表单
+        editForm.value = {
+          channelType: favoriteItem.channelType || '',
+          authorLevel: favoriteItem.authorLevel || 1,
+          backgroundColor: favoriteItem.backgroundColor || '',
+          remark: favoriteItem.remark || ''
+        }
+        
+        showEditSettingsDialog.value = true
+      } else {
+        ElMessage.warning('未找到收藏信息，无法编辑')
+      }
+    }
+  } catch (error) {
+    console.error('获取收藏信息失败:', error)
+    ElMessage.error('获取收藏信息失败')
   }
 }
 
@@ -4652,6 +5069,14 @@ onUnmounted(() => {
   color: var(--el-color-primary);
   font-size: 12px;
   line-height: 1.2;
+  padding: 3px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.author-nickname:hover {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .author-followers-tag {
@@ -4992,13 +5417,99 @@ onUnmounted(() => {
 }
 
 /* 播主设置对话框样式 */
-.color-picker-container {
-  display: flex;
-  align-items: center;
+.color-selection-container {
+  width: 100%;
 }
 
-.color-picker-container .el-color-picker {
-  width: 40px;
+.color-palette {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.color-group {
+  margin-bottom: 12px;
+}
+
+.color-group:last-child {
+  margin-bottom: 0;
+}
+
+.group-label {
+  font-size: 12px;
+  color: #6c757d;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.color-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.color-option {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.color-option.active {
+  border-color: #409eff;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+}
+
+.color-option.active::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.selected-color-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.selected-label {
+  color: #495057;
+  font-weight: 500;
+}
+
+.selected-color-preview {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.selected-value {
+  color: #6c757d;
+  font-family: monospace;
+  font-size: 13px;
 }
 
 :deep(.el-form-item__label) {
@@ -5490,6 +6001,41 @@ onUnmounted(() => {
 
 :deep(.author-info-dialog .el-descriptions__content) {
   color: #111827;
+}
+
+/* 收藏信息标签样式 */
+.favorite-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.info-tag {
+  margin-right: 0 !important;
+}
+
+.color-tag {
+  display: inline-flex;
+  align-items: center;
+}
+
+.color-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  cursor: help;
+}
+
+/* 备注显示样式 */
+.remark-display {
+  line-height: 1.5;
+  color: #374151;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 /* 加入自选对话框样式 */

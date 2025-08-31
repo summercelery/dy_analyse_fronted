@@ -330,6 +330,7 @@
         <el-button @click="showHotnessChartDialog = false">关闭</el-button>
       </template>
     </el-dialog>
+
   </div>
 </template>
 
@@ -391,6 +392,7 @@ const newTag = ref('') // 新增标签输入
 const showUpdateEmailDialog = ref(false)
 const updateEmailLoading = ref(false)
 const emailForm = ref({ email: '' })
+
 
 const formRules = {
   title: [
@@ -940,6 +942,7 @@ const formatChartTime = (timeStr) => {
 
 
 
+
 onMounted(() => {
   loadMusicList()
 })
@@ -1292,4 +1295,5 @@ onMounted(() => {
 :deep(.el-table-column--selection) {
   width: 50px !important;
 }
+
 </style>
