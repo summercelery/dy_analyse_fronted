@@ -304,6 +304,15 @@
                 </template>
               </el-table-column>
               
+              <el-table-column prop="totalInvestmentAmount" label="投资总额" width="100">
+                <template #default="{ row }">
+                  <span v-if="row.totalInvestmentAmount" class="investment-amount">
+                    ¥{{ formatInvestmentAmount(row.totalInvestmentAmount) }}
+                  </span>
+                  <span v-else class="no-investment">-</span>
+                </template>
+              </el-table-column>
+              
               <el-table-column prop="remark" label="备注" min-width="200">
                 <template #default="{ row }">
                   <div class="remark-cell">
@@ -474,6 +483,9 @@
               
               <!-- 收藏信息标签（仅在已收藏时显示） -->
               <div v-if="authorIsFavorited && currentFavoriteInfo" class="favorite-tags">
+                <el-tag v-if="currentFavoriteInfo.totalInvestmentAmount" type="success" size="small" class="info-tag investment-tag">
+                  投资总额: ¥{{ formatInvestmentAmount(currentFavoriteInfo.totalInvestmentAmount) }}
+                </el-tag>
                 <el-tag v-if="currentFavoriteInfo.channelType" type="primary" size="small" class="info-tag">
                   {{ currentFavoriteInfo.channelType }}
                 </el-tag>
@@ -981,7 +993,8 @@ const loadAuthorDetailInfo = async (authorId) => {
           channelType: response.data.channelType,
           authorLevel: response.data.authorLevel,
           backgroundColor: response.data.backgroundColor,
-          remark: response.data.remark
+          remark: response.data.remark,
+          totalInvestmentAmount: response.data.totalInvestmentAmount
         }
       } else {
         currentFavoriteInfo.value = null
@@ -1018,6 +1031,16 @@ const formatAuthorNumber = (num) => {
     return (num / 10000).toFixed(1) + 'w'
   }
   return num.toString()
+}
+
+// 格式化投资金额
+const formatInvestmentAmount = (amount) => {
+  if (!amount || amount === 0) return '0'
+  const num = parseFloat(amount)
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + '万'
+  }
+  return num.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 const handleSearch = () => {
@@ -1112,7 +1135,8 @@ const checkFavoriteStatusAndInfo = async (authorId) => {
             channelType: favoriteItem.channelType,
             authorLevel: favoriteItem.authorLevel,
             backgroundColor: favoriteItem.backgroundColor,
-            remark: favoriteItem.remark
+            remark: favoriteItem.remark,
+            totalInvestmentAmount: favoriteItem.totalInvestmentAmount
           }
         } else {
           currentFavoriteInfo.value = null
@@ -1732,6 +1756,17 @@ onMounted(() => {
   font-size: 13px;
   font-style: italic;
 }
+
+.investment-amount {
+  font-weight: 600;
+  color: #059669;
+  font-size: 14px;
+}
+
+.no-investment {
+  color: #9ca3af;
+  font-size: 13px;
+}
 /* 播主设置对话框样式 */
 .color-selection-container {
   width: 100%;
@@ -1978,6 +2013,13 @@ onMounted(() => {
 
 .info-tag {
   margin-right: 0 !important;
+}
+
+.investment-tag {
+  background-color: #ecfccb !important;
+  color: #365314 !important;
+  border-color: #a3e635 !important;
+  font-weight: 600;
 }
 
 .color-tag {
