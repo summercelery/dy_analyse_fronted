@@ -1,1 +1,0 @@
-import{n as o}from"./index-a434c30f.js";const e={getAuthorInfo(t){return o({url:`/author/info/${t}`,method:"get"})},updateAuthor(t){return o({url:"/author/update",method:"put",data:t,headers:{"Content-Type":"application/json"}})}};export{e as a};

@@ -221,20 +221,16 @@
               
               <el-table-column prop="authorDesc" label="描述" min-width="200">
                 <template #default="{ row }">
-                  <el-tooltip
-                    v-if="row.authorDesc"
-                    :content="row.authorDesc"
-                    placement="top-start"
-                    :disabled="row.authorDesc.length <= 80"
-                    effect="dark"
-                    :show-after="300"
-                  >
-                    <div class="desc-cell">
-                      {{ row.authorDesc }}
-                    </div>
-                  </el-tooltip>
-                  <div v-else class="desc-cell">
-                    暂无描述
+                  <div class="video-desc">
+                    <el-tooltip 
+                      v-if="row.authorDesc"
+                      :content="row.authorDesc"
+                      placement="top"
+                      :show-after="500"
+                    >
+                      <span class="desc-text">{{ row.authorDesc }}</span>
+                    </el-tooltip>
+                    <span v-else class="na-text">暂无描述</span>
                   </div>
                 </template>
               </el-table-column>
@@ -315,11 +311,16 @@
               
               <el-table-column prop="remark" label="备注" min-width="200">
                 <template #default="{ row }">
-                  <div class="remark-cell">
-                    <span v-if="row.remark" class="remark-text">
-                      {{ row.remark }}
-                    </span>
-                    <span v-else class="no-remark">暂无备注</span>
+                  <div class="video-desc">
+                    <el-tooltip 
+                      v-if="row.remark"
+                      :content="row.remark"
+                      placement="top"
+                      :show-after="500"
+                    >
+                      <span class="desc-text">{{ row.remark }}</span>
+                    </el-tooltip>
+                    <span v-else class="na-text">暂无备注</span>
                   </div>
                 </template>
               </el-table-column>
@@ -1669,6 +1670,30 @@ onMounted(() => {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+
+/* 视频描述样式 */
+.video-desc {
+  max-width: 100%;
+  line-height: 1.4;
+}
+
+.desc-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  color: #374151;
+  font-size: 12px;
+  cursor: pointer;
+  word-break: break-word;
+}
+
+.na-text {
+  color: #9ca3af;
+  font-style: italic;
+}
 
 .desc-cell {
   color: #6b7280;

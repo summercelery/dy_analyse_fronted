@@ -60,7 +60,7 @@
           <div class="toolbar-right">
             <el-input
               v-model="searchKeyword"
-              placeholder="搜索音乐标题、作者或专辑"
+              placeholder="搜索音乐标题、作者、专辑或标签"
               :prefix-icon="Search"
               style="width: 300px;"
               clearable
@@ -121,7 +121,7 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="标签" min-width="200">
+              <el-table-column label="搜索标签" min-width="180">
                 <template #default="{ row }">
                   <div class="music-tags">
                     <el-tag
@@ -133,6 +133,23 @@
                       {{ tag }}
                     </el-tag>
                     <span v-if="!parseTags(row.music?.tagList || row.tagList).length" class="na-text">N/A</span>
+                  </div>
+                </template>
+              </el-table-column>
+              
+              <el-table-column label="筛选标签" min-width="180">
+                <template #default="{ row }">
+                  <div class="music-tags">
+                    <el-tag
+                      v-for="filter in parseTags(row.music?.filters || row.filters)"
+                      :key="filter"
+                      size="small"
+                      type="warning"
+                      style="margin-right: 5px;"
+                    >
+                      {{ filter }}
+                    </el-tag>
+                    <span v-if="!parseTags(row.music?.filters || row.filters).length" class="na-text">N/A</span>
                   </div>
                 </template>
               </el-table-column>
@@ -263,6 +280,39 @@
            </div>
           </div>
         </el-form-item>
+        
+        <el-form-item label="筛选标签" prop="filters" required>
+          <div class="tag-input-container">
+            <el-input 
+              v-model="newFilter"
+              placeholder="输入标签后按回车添加"
+              @keyup.enter="addFilter"
+              class="tag-input"
+            >
+              <template #append>
+                <el-button @click="addFilter" :disabled="!newFilter.trim()">添加</el-button>
+              </template>
+            </el-input>
+            
+                       <div class="tag-list" v-if="musicForm.filters.length > 0">
+             <el-tag
+               v-for="(filter, index) in musicForm.filters"
+               :key="index"
+               closable
+               @close="removeFilter(index)"
+               class="music-tag"
+               type="warning"
+             >
+               {{ filter }}
+             </el-tag>
+
+           </div>
+            
+                       <div class="tag-tips">
+             <small>提示：只监控存在此标签关键字的短视频</small>
+           </div>
+          </div>
+        </el-form-item>
       </el-form>
       
       <template #footer>
@@ -383,10 +433,12 @@ const musicForm = ref({
   title: '',
   author: '',
   album: '',
-  tags: [] // 改为数组格式
+  tags: [], // 搜索标签数组格式
+  filters: [] // 筛选标签数组格式
 })
 
-const newTag = ref('') // 新增标签输入
+const newTag = ref('') // 新增搜索标签输入
+const newFilter = ref('') // 新增筛选标签输入
 
 // 更新邮箱对话框
 const showUpdateEmailDialog = ref(false)
@@ -417,6 +469,22 @@ const formRules = {
       },
       trigger: 'change'
     }
+  ],
+  filters: [
+    { 
+      validator: (rule, value, callback) => {
+        if (!value || value.length === 0) {
+          callback(new Error('请至少添加一个筛选标签'))
+        } else if (value.length > 10) {
+          callback(new Error('筛选标签数量不能超过10个'))
+        } else if (value.some(filter => filter.length > 20)) {
+          callback(new Error('单个筛选标签长度不能超过20个字符'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
+    }
   ]
 }
 
@@ -427,10 +495,12 @@ const filteredMusicList = computed(() => {
   return musicList.value.filter(item => {
     const music = item.music || item
     const tags = parseTags(music.tagList)
+    const filters = parseTags(music.filters)
     return (music.title || '').toLowerCase().includes(keyword) ||
            (music.author || '').toLowerCase().includes(keyword) ||
            (music.album || '').toLowerCase().includes(keyword) ||
-           tags.some(tag => tag.toLowerCase().includes(keyword))
+           tags.some(tag => tag.toLowerCase().includes(keyword)) ||
+           filters.some(filter => filter.toLowerCase().includes(keyword))
   })
 })
 
@@ -496,9 +566,11 @@ const resetForm = () => {
     title: '',
     author: '',
     album: '',
-    tags: []
+    tags: [],
+    filters: []
   }
-  newTag.value = '' // 重置新增标签输入
+  newTag.value = '' // 重置新增搜索标签输入
+  newFilter.value = '' // 重置新增筛选标签输入
   if (formRef.value) {
     formRef.value.resetFields()
   }
@@ -512,7 +584,8 @@ const editMusic = (musicData) => {
     title: music.title || '',
     author: music.author || '',
     album: music.album || '',
-    tags: parseTags(music.tagList) // 使用统一的标签解析函数
+    tags: parseTags(music.tagList), // 使用统一的标签解析函数
+    filters: parseTags(music.filters) // 解析筛选标签
   }
   showAddDialog.value = true
 }
@@ -526,10 +599,22 @@ const handleSubmit = async () => {
     return
   }
   
-  // 标签验证
+  // 搜索标签验证
   const tagValidation = validateTags(musicForm.value.tags)
   if (!tagValidation.valid) {
     ElMessage.warning(tagValidation.message)
+    return
+  }
+  
+  // 筛选标签验证
+  if (!musicForm.value.filters || musicForm.value.filters.length === 0) {
+    ElMessage.warning('请至少添加一个筛选标签')
+    return
+  }
+  
+  const filterValidation = validateTags(musicForm.value.filters)
+  if (!filterValidation.valid) {
+    ElMessage.warning(filterValidation.message)
     return
   }
   
@@ -538,7 +623,8 @@ const handleSubmit = async () => {
     // 准备提交数据，将标签数组转换为API需要的JSON字符串格式
     const submitData = {
       ...musicForm.value,
-      tagList: stringifyTags(musicForm.value.tags) // 使用工具函数转换为JSON数组字符串格式
+      tagList: stringifyTags(musicForm.value.tags), // 使用工具函数转换为JSON数组字符串格式
+      filters: stringifyTags(musicForm.value.filters) // 将筛选标签转换为JSON数组字符串格式
     }
     
     let response
@@ -690,6 +776,43 @@ const addTag = () => {
 
 const removeTag = (index) => {
   musicForm.value.tags.splice(index, 1)
+}
+
+const addFilter = () => {
+  const filter = newFilter.value.trim()
+  
+  // 验证筛选标签是否为空
+  if (!filter) {
+    ElMessage.warning('请输入筛选标签内容')
+    return
+  }
+  
+  // 验证筛选标签是否有效
+  if (!isValidTag(filter)) {
+    ElMessage.warning('筛选标签长度应在1-20个字符之间')
+    return
+  }
+  
+  // 验证筛选标签数量
+  if (musicForm.value.filters.length >= 10) {
+    ElMessage.warning('筛选标签数量不能超过10个')
+    return
+  }
+  
+  // 验证筛选标签是否重复
+  if (isTagDuplicate(musicForm.value.filters, filter)) {
+    ElMessage.warning('筛选标签已存在')
+    return
+  }
+  
+  // 添加筛选标签
+  musicForm.value.filters.push(filter)
+  newFilter.value = ''
+  ElMessage.success('筛选标签添加成功')
+}
+
+const removeFilter = (index) => {
+  musicForm.value.filters.splice(index, 1)
 }
 
 // 热度图表相关函数
