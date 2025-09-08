@@ -2985,10 +2985,12 @@ const loadMonitorVideos = async (page = 1) => {
     if (searchKeyword.value) {
       // 根据搜索内容判断是视频ID、链接还是播主名称
       const keyword = searchKeyword.value.trim()
-      if (/^\d+$/.test(keyword)) {
-        params.videoId = keyword
-      } else if (keyword.includes('douyin.com') || keyword.includes('iesdouyin.com')) {
+      if (keyword.includes('douyin.com') || keyword.includes('iesdouyin.com')) {
         params.videoUrl = keyword
+      } else if (/^\d+$/.test(keyword)) {
+        // 纯数字情况：先尝试作为作者名搜索
+        params.authorName = keyword
+        params.fallbackVideoId = keyword // 标记备用的视频ID搜索
       } else {
         params.authorName = keyword
       }
@@ -3047,8 +3049,27 @@ const loadMonitorVideos = async (page = 1) => {
     console.log('Monitor页面: 查询参数:', params)
     
     // 获取监控列表
-    const response = await monitorApi.getMonitorList(params)
+    let response = await monitorApi.getMonitorList(params)
     console.log('Monitor页面: 监控列表API响应:', response)
+    
+    // 如果是纯数字搜索且作者名搜索结果为空，则尝试用视频ID搜索
+    if (params.fallbackVideoId && response.code === 200) {
+      const responseData = response.data || {}
+      const data = responseData.list || []
+      
+      if (data.length === 0) {
+        console.log('作者名搜索无结果，尝试视频ID搜索:', params.fallbackVideoId)
+        // 创建新的参数，用视频ID搜索
+        const fallbackParams = { ...params }
+        delete fallbackParams.authorName
+        delete fallbackParams.fallbackVideoId
+        fallbackParams.videoId = params.fallbackVideoId
+        
+        console.log('Monitor页面: 备用查询参数:', fallbackParams)
+        response = await monitorApi.getMonitorList(fallbackParams)
+        console.log('Monitor页面: 备用API响应:', response)
+      }
+    }
     
     if (response.code === 200) {
       const responseData = response.data || {}
