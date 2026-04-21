@@ -99,9 +99,12 @@
               
               <el-table-column label="音乐标题" min-width="150">
                 <template #default="{ row }">
-                  <div class="music-title">
+                  <span
+                    class="music-title music-title-link"
+                    @click="goToMonitor(row)"
+                  >
                     {{ row.music?.title || row.title || 'N/A' }}
-                  </div>
+                  </span>
                 </template>
               </el-table-column>
               
@@ -678,6 +681,11 @@ const deleteMusic = async (musicData) => {
       ElMessage.error('删除失败')
     }
   }
+}
+
+const goToMonitor = (row) => {
+  const id = row.music?.id || row.id
+  router.push({ path: '/monitor', query: { musicId: id } })
 }
 
 const handleCommand = async (command) => {
@@ -1259,6 +1267,17 @@ onMounted(() => {
 .music-title {
   font-weight: 600;
   color: #1f2937;
+}
+
+.music-title-link {
+  cursor: pointer;
+  color: #409eff;
+  transition: color 0.2s;
+}
+
+.music-title-link:hover {
+  color: #337ecc;
+  text-decoration: underline;
 }
 
 .music-author, .music-album {

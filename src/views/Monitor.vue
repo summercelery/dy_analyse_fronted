@@ -89,7 +89,7 @@
             </div>
           </div>
           
-          <div 
+          <div
             class="stat-card hotspot"
             :class="{ 'is-active': showHotspotFilter }"
             @click="toggleHotspotFilter"
@@ -102,8 +102,22 @@
               <div class="stat-label">72H热度异动</div>
             </div>
           </div>
-          
-          <div 
+
+          <div
+            class="stat-card douyin-music"
+            :class="{ 'is-active': showDouyinMusicDialog }"
+            @click="openDouyinMusicDialog"
+          >
+            <div class="stat-icon">
+              <el-icon size="20"><Headset /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value">{{ douyinMusicList.length }}</div>
+              <div class="stat-label">抖音音乐</div>
+            </div>
+          </div>
+
+          <div
             class="stat-card auto"
             :class="{ 'is-active': currentFilter === 'auto' && !showHotspotFilter }"
             @click="filterVideos('auto')"
@@ -331,17 +345,6 @@
           <template #header>
             <div class="card-header">
               <span class="card-title">监控列表</span>
-              <div class="header-actions">
-                <el-tooltip content="批量操作" placement="top">
-                  <el-button 
-                    :disabled="selectedRows.length === 0"
-                    @click="showBatchDialog = true"
-                    size="small"
-                  >
-                    批量操作 ({{ selectedRows.length }})
-                  </el-button>
-                </el-tooltip>
-              </div>
             </div>
           </template>
           
@@ -369,7 +372,7 @@
               :expand-row-keys="expandedRows"
               row-key="monitorVideo.id"
             >
-              <el-table-column type="selection" width="50" />
+              <el-table-column type="selection" width="50" v-if="false" />
               
               <!-- 只在72H热度异动模式下显示展开行（模仿HotspotAlert.vue的展开表格） -->
               <el-table-column v-if="showHotspotFilter" type="expand" width="50">
@@ -621,7 +624,7 @@
                   <span v-else class="na-text">无话题标签</span>
                 </template>
               </el-table-column>
-              
+
               <!-- 当开启72H热度异动筛选时显示热度提醒信息（模仿HotspotAlert列表） -->
               <template v-if="showHotspotFilter">
                 <el-table-column 
@@ -697,14 +700,14 @@
               
               <!-- 当筛选其他类型时显示搜索标签和搜索类型 -->
               <template v-else>
-                <el-table-column 
-                  label="搜索标签" 
-                  width="120"
+                <el-table-column
+                  label="搜索标签"
+                  width="200"
                 >
                   <template #default="{ row }">
                     <div v-if="getSearchTags(row).length > 0" class="search-tag-list">
                       <el-tag
-                        v-for="tag in getSearchTags(row).slice(0, 3)"
+                        v-for="tag in getSearchTags(row).slice(0, 5)"
                         :key="tag"
                         size="small"
                         type="success"
@@ -713,13 +716,13 @@
                       >
                         {{ tag }}
                       </el-tag>
-                      <el-tooltip 
-                        v-if="getSearchTags(row).length > 3"
-                        :content="getSearchTags(row).slice(3).join('、')"
+                      <el-tooltip
+                        v-if="getSearchTags(row).length > 5"
+                        :content="getSearchTags(row).slice(5).join('、')"
                         placement="top"
                       >
                         <el-tag size="small" type="success" class="search-tag-more">
-                          +{{ getSearchTags(row).length - 3 }}
+                          +{{ getSearchTags(row).length - 5 }}
                         </el-tag>
                       </el-tooltip>
                     </div>
@@ -992,30 +995,6 @@
         </el-button>
       </template>
     </el-dialog>
-
-    <!-- 批量操作对话框 -->
-    <el-dialog
-      v-model="showBatchDialog"
-      title="批量操作"
-      width="400px"
-    >
-      <p>已选择 {{ selectedRows.length }} 个监控项</p>
-      
-      <template #footer>
-        <el-button @click="showBatchDialog = false">取消</el-button>
-        <el-button type="success" @click="batchToggleStatus(1)">
-          批量启用
-        </el-button>
-        <el-button type="warning" @click="batchToggleStatus(0)">
-          批量停用
-        </el-button>
-        <el-button type="danger" @click="batchDelete">
-          批量删除
-        </el-button>
-      </template>
-    </el-dialog>
-
-
 
     <!-- 任务进度对话框 -->
     <el-dialog
@@ -1819,7 +1798,60 @@
       </template>
     </el-dialog>
 
-
+    <!-- 抖音音乐列表弹窗 -->
+    <el-dialog
+      v-model="showDouyinMusicDialog"
+      title="抖音音乐"
+      width="900px"
+      :close-on-click-modal="false"
+      @close="showDouyinMusicDialog = false"
+    >
+      <div v-loading="douyinMusicLoading">
+        <div v-if="douyinMusicList.length === 0 && !douyinMusicLoading" class="no-douyin-music">
+          <el-empty description="暂无相关抖音音乐数据" :image-size="80" />
+        </div>
+        <div v-else class="douyin-music-list">
+          <div
+            v-for="music in douyinMusicList"
+            :key="music.id"
+            class="douyin-music-item"
+          >
+            <div class="douyin-music-item-header">
+              <div class="douyin-music-item-info">
+                <span class="douyin-music-item-title">{{ music.title || '-' }}</span>
+                <span class="douyin-music-item-author">{{ music.authorName || '-' }}</span>
+                <el-tag size="small" type="info" class="douyin-music-use-count">
+                  使用人数 {{ formatNumber(music.useCount || 0) }}
+                </el-tag>
+              </div>
+              <el-button
+                size="small"
+                type="primary"
+                link
+                @click="toggleMusicChart(music)"
+              >
+                {{ expandedMusicCharts.includes(music.douyinMusicId) ? '收起走势' : '查看走势' }}
+              </el-button>
+            </div>
+            <div v-if="expandedMusicCharts.includes(music.douyinMusicId)" class="douyin-music-chart-wrap">
+              <div v-if="musicChartLoading[music.douyinMusicId]" class="chart-loading">
+                <el-icon class="is-loading"><Loading /></el-icon> 加载中...
+              </div>
+              <v-chart
+                v-else-if="musicChartOptions[music.douyinMusicId]"
+                :option="musicChartOptions[music.douyinMusicId]"
+                style="height: 200px; width: 100%;"
+                autoresize
+              />
+              <el-empty v-else description="暂无走势数据" :image-size="60" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showDouyinMusicDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
   </div>
 </template>
@@ -1830,6 +1862,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { monitorApi } from '@/api/monitor'
 import { musicApi } from '@/api/music'
+import { douyinMusicApi } from '@/api/douyinMusic'
 import { videoApi } from '@/api/video'
 import { authorApi } from '@/api/author'
 import { authApi } from '@/api/auth'
@@ -2304,6 +2337,14 @@ const loadTagsAndChannels = async () => {
 
 const currentFilter = ref('all')
 
+// 抖音音乐弹窗相关
+const showDouyinMusicDialog = ref(false)
+const douyinMusicLoading = ref(false)
+const douyinMusicList = ref([])
+const expandedMusicCharts = ref([])
+const musicChartOptions = ref({})
+const musicChartLoading = ref({})
+
 // 处理排序变化
 const handleSortChange = () => {
   currentPage.value = 1
@@ -2457,7 +2498,7 @@ const clearSelectedTags = () => {
 
 const filterVideos = (filterType) => {
   currentFilter.value = filterType
-  
+
   // 清除热度异动筛选状态
   showHotspotFilter.value = false
   startTime.value = ''
@@ -2476,6 +2517,85 @@ const filterVideos = (filterType) => {
   }
   
   ElMessage.success(filterMessages[filterType] || '过滤完成')
+}
+
+// 打开抖音音乐弹窗
+const openDouyinMusicDialog = async () => {
+  if (!currentMusicId.value) return
+  showDouyinMusicDialog.value = true
+  if (douyinMusicList.value.length > 0) return
+  douyinMusicLoading.value = true
+  try {
+    const res = await douyinMusicApi.getDouyinMusicList(currentMusicId.value)
+    if (res.code === 200) {
+      douyinMusicList.value = res.data || []
+    }
+  } catch (e) {
+    ElMessage.error('获取抖音音乐列表失败')
+  } finally {
+    douyinMusicLoading.value = false
+  }
+}
+
+// 后台静默拉取抖音音乐列表（用于统计卡片数字显示）
+const loadDouyinMusicCount = async () => {
+  if (!currentMusicId.value) return
+  try {
+    const res = await douyinMusicApi.getDouyinMusicList(currentMusicId.value)
+    if (res.code === 200) {
+      douyinMusicList.value = res.data || []
+    }
+  } catch (e) {
+    // 静默失败，不影响主流程
+  }
+}
+
+// 展开/收起某首抖音音乐的走势图
+const toggleMusicChart = async (music) => {
+  const id = music.douyinMusicId
+  const idx = expandedMusicCharts.value.indexOf(id)
+  if (idx > -1) {
+    expandedMusicCharts.value.splice(idx, 1)
+    return
+  }
+  expandedMusicCharts.value.push(id)
+  if (musicChartOptions.value[id]) return
+  musicChartLoading.value = { ...musicChartLoading.value, [id]: true }
+  try {
+    const res = await douyinMusicApi.getDouyinMusicHistory(id)
+    if (res.code === 200 && res.data && res.data.length > 0) {
+      const history = res.data
+      const times = history.map(h => {
+        const d = new Date(h.recordTime)
+        return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+      })
+      const counts = history.map(h => h.useCount || 0)
+      musicChartOptions.value = {
+        ...musicChartOptions.value,
+        [id]: {
+          tooltip: { trigger: 'axis' },
+          grid: { left: 50, right: 20, top: 20, bottom: 40 },
+          xAxis: { type: 'category', data: times, axisLabel: { fontSize: 10, rotate: 30 } },
+          yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
+          series: [{
+            name: '使用人数',
+            type: 'line',
+            data: counts,
+            smooth: true,
+            lineStyle: { color: '#409eff' },
+            itemStyle: { color: '#409eff' },
+            areaStyle: { color: 'rgba(64,158,255,0.1)' }
+          }]
+        }
+      }
+    } else {
+      musicChartOptions.value = { ...musicChartOptions.value, [id]: null }
+    }
+  } catch (e) {
+    musicChartOptions.value = { ...musicChartOptions.value, [id]: null }
+  } finally {
+    musicChartLoading.value = { ...musicChartLoading.value, [id]: false }
+  }
 }
 
 // 安全获取话题标签数组
@@ -3117,7 +3237,9 @@ const loadMonitorVideos = async (page = 1) => {
         },
         // 新增：热度提醒数据（仅在72H热度异动筛选模式下有数据）
         hotspotAlerts: item.hotspotAlerts || [],
-        
+        // 抖音音乐
+        douyinMusicId: item.douyinMusicId,
+        douyinMusicTitle: item.douyinMusicTitle,
         // 新增：播主相关设置字段
         backgroundColor: item.backgroundColor,
         authorLevel: item.authorLevel,
@@ -3149,6 +3271,7 @@ const loadMonitorVideos = async (page = 1) => {
       if (page === 1) {
         await loadStatistics()
         await loadTagsAndChannels()
+        loadDouyinMusicCount()
       }
     } else {
       ElMessage.error(response.message || '加载监控列表失败')
@@ -4357,6 +4480,9 @@ const cancelCustomSelection = async () => {
 
 const clearMusicFilter = () => {
   currentMusicId.value = null
+  douyinMusicList.value = []
+  expandedMusicCharts.value = []
+  musicChartOptions.value = {}
   ElMessage.success('已清除音乐过滤')
 }
 
@@ -4462,6 +4588,7 @@ onMounted(async () => {
     // 同时加载统计数据和标签频道数据
     await loadStatistics()
     await loadTagsAndChannels()
+    loadDouyinMusicCount()
   }
   
   // 恢复保存的页面状态
@@ -4837,6 +4964,108 @@ onUnmounted(() => {
   border: 2px solid rgba(239, 68, 68, 0.4);
   box-shadow: 0 6px 16px rgba(239, 68, 68, 0.2);
   background: linear-gradient(135deg, rgba(254, 242, 242, 0.5) 0%, rgba(254, 202, 202, 0.3) 100%);
+}
+
+.stat-card.douyin-music .stat-icon {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+  transition: all 0.3s ease;
+}
+
+.stat-card.douyin-music .stat-icon .el-icon {
+  color: #ffffff !important;
+}
+
+.stat-card.douyin-music:hover .stat-icon {
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  transform: scale(1.05);
+}
+
+.stat-card.douyin-music.is-active {
+  border: 2px solid rgba(139, 92, 246, 0.4);
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.2);
+  background: linear-gradient(135deg, rgba(245, 243, 255, 0.5) 0%, rgba(221, 214, 254, 0.3) 100%);
+}
+
+.douyin-music-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 560px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.douyin-music-item {
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 12px 16px;
+  background: #fafafa;
+}
+
+.douyin-music-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.douyin-music-item-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.douyin-music-item-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #303133;
+}
+
+.douyin-music-item-author {
+  font-size: 12px;
+  color: #909399;
+}
+
+.douyin-music-use-count {
+  font-size: 11px;
+}
+
+.douyin-music-chart-wrap {
+  margin-top: 10px;
+  border-top: 1px solid #ebeef5;
+  padding-top: 10px;
+}
+
+.chart-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #909399;
+  font-size: 13px;
+  padding: 20px 0;
+  justify-content: center;
+}
+
+.no-douyin-music {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.douyin-music-cell {
+  overflow: hidden;
+}
+
+.douyin-music-title {
+  font-size: 12px;
+  color: #606266;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 130px;
 }
 
 .stat-icon {
