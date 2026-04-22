@@ -179,26 +179,6 @@
               </div>
               <div class="toolbar-right">
                 <div class="hotspot-main-controls">
-                  <el-select
-                    v-model="sortField"
-                    placeholder="排序方式"
-                    style="width: 120px;"
-                    @change="handleSortChange"
-                  >
-                    <el-option label="按点赞数" value="diggCount" />
-                    <el-option label="按发布时间" value="publishTime" />
-                    <el-option label="按创建时间" value="createTime" />
-                  </el-select>
-                  <el-select
-                    v-model="sortOrder"
-                    placeholder="排序顺序"
-                    style="width: 90px;"
-                    @change="handleSortChange"
-                  >
-                    <el-option label="降序" value="desc" />
-                    <el-option label="升序" value="asc" />
-                  </el-select>
-                  
                   <el-date-picker
                     v-model="customStartDate"
                     type="date"
@@ -250,26 +230,6 @@
               </div>
               <div class="toolbar-right">
                 <div class="normal-main-controls">
-                  <el-select
-                    v-model="sortField"
-                    placeholder="排序方式"
-                    style="width: 120px;"
-                    @change="handleSortChange"
-                  >
-                    <el-option label="按点赞数" value="diggCount" />
-                    <el-option label="按发布时间" value="publishTime" />
-                    <el-option label="按创建时间" value="createTime" />
-                  </el-select>
-                  <el-select
-                    v-model="sortOrder"
-                    placeholder="排序顺序"
-                    style="width: 90px;"
-                    @change="handleSortChange"
-                  >
-                    <el-option label="降序" value="desc" />
-                    <el-option label="升序" value="asc" />
-                  </el-select>
-                  
                   <el-input
                     v-model="searchKeyword"
                     placeholder="搜索视频ID、链接或播主名称"
@@ -361,10 +321,12 @@
           </div>
           
           <div v-else v-loading="loading">
-            <el-table 
-              :data="monitorList" 
+            <el-table
+              :data="monitorList"
               style="width: 100%"
               @selection-change="handleSelectionChange"
+              @sort-change="handleTableSortChange"
+              :default-sort="{ prop: sortField, order: sortOrder === 'desc' ? 'descending' : 'ascending' }"
               :empty-text="monitorList.length === 0 ? '暂无监控数据' : ''"
               size="default"
               :cell-style="{ padding: '3px 3px' }"
@@ -496,19 +458,18 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="视频ID" width="120">
+              <el-table-column label="视频ID" width="110">
                 <template #default="{ row }">
                   <div class="video-id">
-                    <div 
+                    <div
                       :class="[
                         'video-id-container',
                         { 'hotspot-video-container': isRecentHotspotAlert(row) }
                       ]"
                     >
-                      <!-- 视频ID链接 -->
-                      <el-link 
+                      <el-link
                         v-if="row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId"
-                        :href="`https://www.douyin.com/video/${row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId}`" 
+                        :href="`https://www.douyin.com/video/${row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId}`"
                         target="_blank"
                         type="primary"
                         :class="[
@@ -518,8 +479,8 @@
                       >
                         {{ getTruncatedVideoId(row.monitorVideo?.awemeId || row.monitorVideo?.id || row.awemeId) }}
                       </el-link>
-                      <span 
-                        v-else 
+                      <span
+                        v-else
                         :class="[
                           'video-id-text',
                           { 'hotspot-video-id': isRecentHotspotAlert(row) }
@@ -529,20 +490,10 @@
                       </span>
                     </div>
                   </div>
-                  <!-- 调试信息 -->
-                  <div v-if="false" style="font-size: 10px; color: #999;">
-                    Debug: {{ JSON.stringify({
-                      awemeId: row.monitorVideo?.awemeId,
-                      id: row.monitorVideo?.id,
-                      rowAwemeId: row.awemeId,
-                      workUrl: row.monitorVideo?.workUrl,
-                      joinCustomType: row.monitorVideo?.joinCustomType
-                    }) }}
-                  </div>
                 </template>
               </el-table-column>
               
-              <el-table-column label="视频描述" width="185">
+              <el-table-column label="视频描述" width="160">
                 <template #default="{ row }">
                   <div class="video-desc">
                     <el-tooltip 
@@ -558,7 +509,7 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="播主名称" width="130">
+              <el-table-column label="播主名称" width="120" prop="followerCount" sortable="custom">
                 <template #default="{ row }">
                   <div 
                     class="author-name"
@@ -599,11 +550,11 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="话题标签" width="200">
+              <el-table-column label="话题标签" width="170">
                 <template #default="{ row }">
                   <div v-if="getTopicsArray(row).length > 0" class="hashtag-list">
                     <el-tag
-                      v-for="tag in getTopicsArray(row).slice(0, 5)"
+                      v-for="tag in getTopicsArray(row).slice(0, 3)"
                       :key="tag"
                       size="small"
                       type="info"
@@ -611,13 +562,13 @@
                     >
                       {{ tag }}
                     </el-tag>
-                    <el-tooltip 
-                      v-if="getTopicsArray(row).length > 5"
-                      :content="getTopicsArray(row).slice(5).join('、')"
+                    <el-tooltip
+                      v-if="getTopicsArray(row).length > 3"
+                      :content="getTopicsArray(row).slice(3).join('、')"
                       placement="top"
                     >
                       <el-tag size="small" type="info" class="hashtag-more">
-                        +{{ getTopicsArray(row).length - 5 }}
+                        +{{ getTopicsArray(row).length - 3 }}
                       </el-tag>
                     </el-tooltip>
                   </div>
@@ -627,9 +578,9 @@
 
               <!-- 当开启72H热度异动筛选时显示热度提醒信息（模仿HotspotAlert列表） -->
               <template v-if="showHotspotFilter">
-                <el-table-column 
-                  label="提醒统计" 
-                  width="180"
+                <el-table-column
+                  label="提醒统计"
+                  width="160"
                   align="center"
                 >
                   <template #default="{ row }">
@@ -645,9 +596,9 @@
                   </template>
                 </el-table-column>
                 
-                <el-table-column 
-                  label="最高评分" 
-                  width="120" 
+                <el-table-column
+                  label="最高评分"
+                  width="100"
                   align="center"
                 >
                   <template #default="{ row }">
@@ -702,12 +653,12 @@
               <template v-else>
                 <el-table-column
                   label="搜索标签"
-                  width="200"
+                  width="160"
                 >
                   <template #default="{ row }">
                     <div v-if="getSearchTags(row).length > 0" class="search-tag-list">
                       <el-tag
-                        v-for="tag in getSearchTags(row).slice(0, 5)"
+                        v-for="tag in getSearchTags(row).slice(0, 3)"
                         :key="tag"
                         size="small"
                         type="success"
@@ -717,12 +668,12 @@
                         {{ tag }}
                       </el-tag>
                       <el-tooltip
-                        v-if="getSearchTags(row).length > 5"
-                        :content="getSearchTags(row).slice(5).join('、')"
+                        v-if="getSearchTags(row).length > 3"
+                        :content="getSearchTags(row).slice(3).join('、')"
                         placement="top"
                       >
                         <el-tag size="small" type="success" class="search-tag-more">
-                          +{{ getSearchTags(row).length - 5 }}
+                          +{{ getSearchTags(row).length - 3 }}
                         </el-tag>
                       </el-tooltip>
                     </div>
@@ -730,8 +681,8 @@
                   </template>
                 </el-table-column>
                 
-                <el-table-column 
-                  label="搜索类型" 
+                <el-table-column
+                  label="搜索类型"
                   width="100"
                 >
                   <template #default="{ row }">
@@ -761,7 +712,7 @@
                 </el-table-column>
               </template>
               
-              <el-table-column label="最新数据" width="130">
+              <el-table-column label="最新数据" width="110" prop="diggCount" sortable="custom">
                 <template #default="{ row }">
                   <div v-if="row.latestStats" class="stats-preview">
                     <div class="stats-item">
@@ -781,23 +732,19 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="发布时间" width="150" align="center">
+              <el-table-column label="发布时间" width="100" align="center" prop="publishTime" sortable="custom">
                 <template #default="{ row }">
-                  <div class="publish-time">
-                    {{ formatPublishTime(row.monitorVideo?.videoPublishTime) }}
-                  </div>
+                  <span class="date-text">{{ formatDateOnly(row.monitorVideo?.videoPublishTime) }}</span>
+                </template>
+              </el-table-column>
+
+              <el-table-column label="创建时间" width="100" align="center" prop="createTime" sortable="custom">
+                <template #default="{ row }">
+                  <span class="date-text">{{ formatDateOnly(row.monitorVideo?.createTime) }}</span>
                 </template>
               </el-table-column>
               
-              <el-table-column label="创建时间" width="150" align="center">
-                <template #default="{ row }">
-                  <div class="create-time">
-                    {{ formatPublishTime(row.monitorVideo?.createTime) }}
-                  </div>
-                </template>
-              </el-table-column>
-              
-              <el-table-column label="状态" width="100" align="center">
+              <el-table-column label="状态" width="70" align="center">
                 <template #default="{ row }">
                   <el-tag 
                     :type="getStatusType(row.monitorVideo?.status)"
@@ -809,45 +756,43 @@
                 </template>
               </el-table-column>
               
-              <el-table-column label="操作" width="200" fixed="right">
+              <el-table-column label="操作" width="140" fixed="right">
                 <template #default="{ row }">
                   <div class="table-actions">
                     <el-tooltip content="查看统计" placement="top">
-                      <el-button 
-                        type="primary" 
-                        size="small" 
+                      <el-button
+                        type="primary"
+                        size="small"
                         :icon="DataAnalysis"
                         @click="viewStats(row.monitorVideo?.awemeId)"
                         link
                       />
                     </el-tooltip>
-                    
+
                     <el-tooltip :content="row.monitorVideo?.joinCustomType === 1 ? '更新自选' : '加入自选'" placement="top">
-                      <el-button 
-                        type="success" 
-                        size="small" 
+                      <el-button
+                        type="success"
+                        size="small"
                         :icon="Collection"
                         @click="openCustomSelectionDialog(row)"
                         link
                       />
                     </el-tooltip>
-                    
+
                     <el-tooltip :content="row.monitorVideo?.status === 1 ? '停用监控' : '启用监控'" placement="top">
-                      <el-button 
+                      <el-button
                         :type="row.monitorVideo?.status === 1 ? 'warning' : 'success'"
                         size="small"
                         :icon="row.monitorVideo?.status === 1 ? VideoPause : VideoPlay"
                         @click="toggleStatus(row)"
                         link
-                      >
-                        {{ row.monitorVideo?.status === 1 ? '停用' : '启用' }}
-                      </el-button>
+                      />
                     </el-tooltip>
-                    
+
                     <el-tooltip content="删除监控" placement="top">
-                      <el-button 
-                        type="danger" 
-                        size="small" 
+                      <el-button
+                        type="danger"
+                        size="small"
                         :icon="Delete"
                         @click="deleteMonitor(row)"
                         link
@@ -869,6 +814,7 @@
                 @size-change="handleSizeChange"
                 @current-change="handleCurrentChange"
                 class="pagination"
+                :teleported="true"
               />
             </div>
           </div>
@@ -1818,7 +1764,11 @@
           >
             <div class="douyin-music-item-header">
               <div class="douyin-music-item-info">
-                <span class="douyin-music-item-title">{{ music.title || '-' }}</span>
+                <a
+                  class="douyin-music-item-title"
+                  :href="`https://www.douyin.com/music/${music.douyinMusicId}`"
+                  target="_blank"
+                >{{ music.title || '-' }}</a>
                 <span class="douyin-music-item-author">{{ music.authorName || '-' }}</span>
                 <el-tag size="small" type="info" class="douyin-music-use-count">
                   使用人数 {{ formatNumber(music.useCount || 0) }}
@@ -2351,11 +2301,19 @@ const handleSortChange = () => {
   loadMonitorVideos(1)
 }
 
+const handleTableSortChange = ({ prop, order }) => {
+  if (!prop || !order) return
+  sortField.value = prop
+  sortOrder.value = order === 'ascending' ? 'asc' : 'desc'
+  currentPage.value = 1
+  loadMonitorVideos(1)
+}
+
 // 排序函数
 const sortMonitors = (monitors) => {
   return monitors.slice().sort((a, b) => {
     let valueA, valueB
-    
+
     switch (sortField.value) {
       case 'diggCount':
         valueA = a?.latestStats?.diggCount || 0
@@ -2369,11 +2327,15 @@ const sortMonitors = (monitors) => {
         valueA = new Date(a?.monitorVideo?.createTime || 0).getTime()
         valueB = new Date(b?.monitorVideo?.createTime || 0).getTime()
         break
+      case 'followerCount':
+        valueA = a?.authorInfo?.followerCount || 0
+        valueB = b?.authorInfo?.followerCount || 0
+        break
       default:
         valueA = a?.latestStats?.diggCount || 0
         valueB = b?.latestStats?.diggCount || 0
     }
-    
+
     if (sortOrder.value === 'asc') {
       return valueA - valueB
     } else {
@@ -2958,13 +2920,16 @@ const formatNumber = (num) => {
 
 const formatPublishTime = (timestamp) => {
   if (!timestamp) return 'N/A'
-  
-  // 判断时间戳是秒级还是毫秒级
-  // 如果小于13位数字，认为是秒级时间戳
   const isSecondTimestamp = timestamp.toString().length === 10
   const date = new Date(isSecondTimestamp ? timestamp * 1000 : timestamp)
-  
   return date.toLocaleString('zh-CN')
+}
+
+const formatDateOnly = (timestamp) => {
+  if (!timestamp) return 'N/A'
+  const isSecondTimestamp = timestamp.toString().length === 10
+  const date = new Date(isSecondTimestamp ? timestamp * 1000 : timestamp)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 const formatFollowerCount = (count) => {
@@ -3143,8 +3108,9 @@ const loadMonitorVideos = async (page = 1) => {
     // 添加排序参数
     const sortFieldMap = {
       'diggCount': 'digg_count',
-      'publishTime': 'video_publish_time', 
-      'createTime': 'create_time'
+      'publishTime': 'video_publish_time',
+      'createTime': 'create_time',
+      'followerCount': 'follower_count'
     }
     params.sortBy = sortFieldMap[sortField.value] || 'create_time'
     params.sortOrder = sortOrder.value.toUpperCase()
@@ -4859,22 +4825,22 @@ onUnmounted(() => {
 
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 18px;
-  margin: 20px 0 16px; /* 减小与分割线的距离 */
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin: 16px 0 14px;
 }
 
 .stat-card {
   flex: 1;
   background: #fff;
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 10px;
+  padding: 14px 16px;
   border: 1px solid #e6e8eb;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   transition: all 0.3s ease;
-  cursor: pointer; /* 添加鼠标指针样式 */
+  cursor: pointer;
 }
 
 .stat-card:hover {
@@ -5021,7 +4987,13 @@ onUnmounted(() => {
 .douyin-music-item-title {
   font-weight: 600;
   font-size: 14px;
-  color: #303133;
+  color: #409eff;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.douyin-music-item-title:hover {
+  text-decoration: underline;
 }
 
 .douyin-music-item-author {
@@ -5069,29 +5041,34 @@ onUnmounted(() => {
 }
 
 .stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .stat-info {
   flex: 1;
+  min-width: 0;
 }
 
 .stat-value {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #1f2937;
   line-height: 1;
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: 12px;
   color: #6b7280;
-  margin-top: 4px;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .monitor-table-card {
@@ -5433,22 +5410,9 @@ onUnmounted(() => {
   font-size: 11px;
 }
 
-.publish-time {
+.date-text {
   font-size: 12px;
   color: #374151;
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.create-time {
-  font-size: 12px;
-  color: #374151;
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* 搜索标签样式 */
@@ -5771,7 +5735,7 @@ onUnmounted(() => {
   gap: 16px;
 }
 
-:deep(.el-select) {
+:deep(.el-form .el-select) {
   width: 100%;
 }
 
@@ -5779,6 +5743,14 @@ onUnmounted(() => {
   border-radius: 8px;
   overflow: hidden;
   width: 100%;
+}
+
+:deep(.monitor-table-card .el-card__body) {
+  overflow: visible;
+}
+
+:deep(.el-pagination .el-select .el-select__popper) {
+  z-index: 9999 !important;
 }
 
 :deep(.el-table .el-table__expanded-cell) {
