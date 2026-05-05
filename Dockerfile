@@ -1,14 +1,14 @@
 # 多阶段构建
 # 第一阶段：构建
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 复制package文件
+# 复制依赖清单（利用 Docker 层缓存）
 COPY package*.json ./
 
-# 安装依赖
-RUN npm install
+# 使用 npm ci 确保依赖版本一致（构建阶段需要 devDependencies）
+RUN npm ci
 
 # 复制源代码
 COPY . .
@@ -19,14 +19,16 @@ RUN npm run build
 # 第二阶段：生产环境
 FROM nginx:alpine
 
+# 健康检查需要 wget
+RUN apk add --no-cache wget
+
 # 复制构建产物
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# 复制nginx配置
-COPY nginx.docker.conf /etc/nginx/conf.d/default.conf
+# nginx:alpine 原生模板机制：/etc/nginx/templates/*.template 会被 envsubst 自动处理
+COPY nginx.docker.conf /etc/nginx/templates/default.conf.template
 
-# 暴露80端口
 EXPOSE 80
 
-# 启动nginx
-CMD ["nginx", "-g", "daemon off;"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost/ || exit 1
