@@ -30,7 +30,8 @@ COPY nginx.docker.conf /etc/nginx/conf.d/default.conf
 
 # 钩子脚本：在 nginx 启动前用 sed 替换占位符（nginx:alpine 入口脚本会自动调用 docker-entrypoint.d/*.sh）
 COPY set-backend.sh /docker-entrypoint.d/40-set-backend.sh
-RUN chmod +x /docker-entrypoint.d/40-set-backend.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/40-set-backend.sh && \
+    chmod +x /docker-entrypoint.d/40-set-backend.sh
 
 EXPOSE 80
 
