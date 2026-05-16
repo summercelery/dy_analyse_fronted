@@ -19,5 +19,16 @@ export const authorApi = {
         'Content-Type': 'application/json'
       }
     })
+  },
+
+  // 通过抖音用户主页链接导入播主
+  importAuthor(profileUrl) {
+    return request({
+      url: '/author/import',
+      method: 'post',
+      data: {
+        profileUrl
+      }
+    })
   }
 }

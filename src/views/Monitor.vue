@@ -632,17 +632,44 @@
                   </template>
                 </el-table-column>
                 
-                <el-table-column 
-                  label="投资总金额" 
+                <el-table-column
+                  label="投资总金额"
                   width="120"
                   align="right"
                 >
                   <template #default="{ row }">
                     <div class="total-investment">
-                      <span v-if="row.monitorVideo?.totalInvestmentAmount && row.monitorVideo.totalInvestmentAmount > 0" 
-                            class="investment-amount">
-                        ¥{{ formatInvestmentAmount(row.monitorVideo.totalInvestmentAmount) }}
-                      </span>
+                      <el-popover
+                        v-if="row.monitorVideo?.totalInvestmentAmount && row.monitorVideo.totalInvestmentAmount > 0"
+                        placement="left"
+                        :width="280"
+                        trigger="hover"
+                        :show-after="200"
+                        @show="loadInvestmentBreakdown(row)"
+                      >
+                        <template #reference>
+                          <span class="investment-amount investment-hoverable">
+                            ¥{{ formatInvestmentAmount(row.monitorVideo.totalInvestmentAmount) }}
+                          </span>
+                        </template>
+                        <div class="investment-breakdown" v-loading="investmentBreakdowns[row.monitorVideo?.awemeId]?.loading">
+                          <template v-if="getBreakdownData(row)">
+                            <div class="breakdown-list">
+                              <div v-for="(item, i) in getBreakdownData(row)" :key="i" class="breakdown-item">
+                                <span class="breakdown-type">{{ item.typeLabel }}</span>
+                                <span class="breakdown-time" v-if="item.investmentTime">{{ formatBreakdownTime(item.investmentTime) }}</span>
+                                <span class="breakdown-amount">¥{{ formatInvestmentAmount(item.amount) }}</span>
+                              </div>
+                              <el-divider style="margin: 8px 0" />
+                              <div class="breakdown-item breakdown-total">
+                                <span class="breakdown-type">合计</span>
+                                <span class="breakdown-amount">¥{{ formatInvestmentAmount(row.monitorVideo.totalInvestmentAmount) }}</span>
+                              </div>
+                            </div>
+                          </template>
+                          <span v-else class="na-text">暂无明细</span>
+                        </div>
+                      </el-popover>
                       <span v-else class="na-text">-</span>
                     </div>
                   </template>
@@ -1535,63 +1562,79 @@
             <span>正在加载投资记录...</span>
           </div>
           <template v-else>
-            <!-- 如果有投资记录，显示投资记录列表 -->
-            <div v-if="investmentForm.amounts.length > 0">
-              <div v-for="(item, index) in investmentForm.amounts" :key="index" class="investment-item">
-            <div class="investment-row">
-              <el-form-item label="投资金额" class="amount-input">
-                <el-input-number
-                  v-model="item.amount"
-                  :min="0"
-                  :step="100"
-                  :precision="2"
-                  placeholder="请输入投资金额"
-                  style="width: 100%"
-                />
-              </el-form-item>
-              
-              <el-form-item label="投资时间" class="time-input">
-                <el-date-picker
-                  v-model="item.investmentTime"
-                  type="datetime"
-                  placeholder="选择投资时间"
-                  format="YYYY-MM-DD HH:mm"
-                  value-format="YYYY-MM-DDTHH:mm"
-                  style="width: 100%"
-                />
-              </el-form-item>
-              
-              <div class="action-buttons">
-                <el-button
-                  v-if="index === investmentForm.amounts.length - 1"
-                  type="primary"
-                  size="small"
-                  :icon="Plus"
-                  @click="addInvestmentAmount"
-                  circle
-                />
-                <el-button
-                  type="danger"
-                  size="small"
-                  :icon="Delete"
-                  @click="removeInvestmentAmount(index)"
-                  circle
-                />
-              </div>
-              </div>
+            <!-- 购买金额 -->
+            <div class="investment-item purchase-item">
+              <div class="investment-row">
+                <el-form-item label="购买金额" class="amount-input">
+                  <el-input-number
+                    v-model="investmentForm.purchaseAmount"
+                    :min="0"
+                    :step="100"
+                    :precision="2"
+                    placeholder="购买金额（选填）"
+                    style="width: 100%"
+                  />
+                </el-form-item>
+                <el-form-item label="购买时间" class="time-input">
+                  <el-date-picker
+                    v-model="investmentForm.purchaseTime"
+                    type="datetime"
+                    placeholder="选择购买时间"
+                    format="YYYY-MM-DD HH:mm"
+                    value-format="YYYY-MM-DDTHH:mm"
+                    style="width: 100%"
+                  />
+                </el-form-item>
+                <div class="action-buttons"></div>
               </div>
             </div>
-            
-            <!-- 如果没有投资记录，显示添加按钮 -->
-            <div v-else class="no-investment-records">
-              <el-button 
-                type="primary" 
-                :icon="Plus" 
-                @click="addFirstInvestmentAmount"
-                class="add-investment-btn"
-              >
-                添加投资记录
-              </el-button>
+
+            <!-- 抖加金额列表 -->
+            <div class="doujia-section">
+              <h5 class="doujia-title">
+                抖加金额
+                <el-button type="primary" size="small" :icon="Plus" @click="addDoujiaAmount" text>
+                  添加抖加
+                </el-button>
+              </h5>
+              <div v-if="investmentForm.doujiaAmounts.length > 0">
+                <div v-for="(item, index) in investmentForm.doujiaAmounts" :key="index" class="investment-item doujia-item">
+                  <div class="investment-row">
+                    <el-form-item label="抖加金额" class="amount-input">
+                      <el-input-number
+                        v-model="item.amount"
+                        :min="0"
+                        :step="100"
+                        :precision="2"
+                        placeholder="请输入抖加金额"
+                        style="width: 100%"
+                      />
+                    </el-form-item>
+                    <el-form-item label="抖加时间" class="time-input">
+                      <el-date-picker
+                        v-model="item.investmentTime"
+                        type="datetime"
+                        placeholder="选择抖加时间"
+                        format="YYYY-MM-DD HH:mm"
+                        value-format="YYYY-MM-DDTHH:mm"
+                        style="width: 100%"
+                      />
+                    </el-form-item>
+                    <div class="action-buttons">
+                      <el-button
+                        type="danger"
+                        size="small"
+                        :icon="Delete"
+                        @click="removeDoujiaAmount(index)"
+                        circle
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="no-investment-records">
+                <span class="na-text">暂无抖加记录，点击上方按钮添加</span>
+              </div>
             </div>
           </template>
         </div>
@@ -2081,15 +2124,13 @@ const customSelectionLoading = ref(false)
 const investmentRecordsLoading = ref(false)
 const currentMonitorVideo = ref(null)
 const investmentForm = ref({
-  description: '', // 视频描述
-  amounts: [
-    {
-      id: null,
-      amount: null,
-      investmentTime: '' // 初始化时先设为空，在实际使用时再设置北京时间
-    }
-  ]
+  description: '',
+  purchaseAmount: null,
+  purchaseTime: null,
+  doujiaAmounts: []
 })
+
+const investmentBreakdowns = ref({})
 
 
 
@@ -2946,6 +2987,45 @@ const formatInvestmentAmount = (amount) => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })
+}
+
+const loadInvestmentBreakdown = async (row) => {
+  const awemeId = row.monitorVideo?.awemeId
+  if (!awemeId) return
+  if (investmentBreakdowns.value[awemeId]?.data) return
+
+  investmentBreakdowns.value[awemeId] = { loading: true, data: null }
+  try {
+    const response = await monitorApi.getVideoInvestments(awemeId)
+    if (response.code === 200) {
+      const items = (response.data || []).map(item => ({
+        ...item,
+        typeLabel: item.type === 'purchase' ? '购买' : '抖加'
+      }))
+      investmentBreakdowns.value[awemeId] = { loading: false, data: items }
+    } else {
+      investmentBreakdowns.value[awemeId] = { loading: false, data: [] }
+    }
+  } catch {
+    investmentBreakdowns.value[awemeId] = { loading: false, data: [] }
+  }
+}
+
+const getBreakdownData = (row) => {
+  const awemeId = row.monitorVideo?.awemeId
+  if (!awemeId) return null
+  const entry = investmentBreakdowns.value[awemeId]
+  return entry?.data || null
+}
+
+const formatBreakdownTime = (time) => {
+  if (!time) return ''
+  try {
+    const d = new Date(time)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  } catch {
+    return ''
+  }
 }
 
 const getTruncatedVideoId = (videoId) => {
@@ -4266,40 +4346,39 @@ const confirmAuthorSetting = async () => {
 // 加入自选相关函数
 const openCustomSelectionDialog = async (row) => {
   currentMonitorVideo.value = row
-  
-  // 先显示对话框，避免等待时间过长
+
   showCustomDialog.value = true
-  
-  // 重置表单，预填充视频备注
+
   investmentForm.value = {
     description: row.monitorVideo?.remark || '',
-    amounts: [] // 初始化为空数组，等待加载投资记录
+    purchaseAmount: null,
+    purchaseTime: null,
+    doujiaAmounts: []
   }
-  
-  // 异步加载投资记录
+
   const awemeId = row.monitorVideo?.awemeId
   if (awemeId) {
     investmentRecordsLoading.value = true
     try {
-      console.log('加载投资记录，视频ID:', awemeId)
       const response = await monitorApi.getVideoInvestments(awemeId)
       if (response.code === 200 && response.data && response.data.length > 0) {
-        // 将后端返回的投资记录转换为前端表单格式
-        const investmentAmounts = response.data.map(item => ({
-          id: item.id,
-          amount: item.amount,
-          investmentTime: item.investmentTime ? convertToBeijingTimeString(item.investmentTime) : getBeijingTime()
-        }))
-        
-        // 更新表单数据
-        investmentForm.value.amounts = investmentAmounts
-        console.log('成功加载投资记录:', investmentAmounts)
-      } else {
-        console.log('该视频暂无投资记录')
+        const purchase = response.data.find(item => item.type === 'purchase')
+        if (purchase) {
+          investmentForm.value.purchaseAmount = purchase.amount
+          investmentForm.value.purchaseTime = purchase.investmentTime
+            ? convertToBeijingTimeString(purchase.investmentTime) : null
+        }
+        investmentForm.value.doujiaAmounts = response.data
+          .filter(item => item.type !== 'purchase')
+          .map(item => ({
+            id: item.id,
+            amount: item.amount,
+            investmentTime: item.investmentTime
+              ? convertToBeijingTimeString(item.investmentTime) : getBeijingTime()
+          }))
       }
     } catch (error) {
       console.warn('加载投资记录失败:', error)
-      // 加载失败时保持默认的空记录
     } finally {
       investmentRecordsLoading.value = false
     }
@@ -4312,35 +4391,22 @@ const closeCustomDialog = () => {
   investmentRecordsLoading.value = false
   investmentForm.value = {
     description: '',
-    amounts: [
-      {
-        id: null,
-        amount: null,
-        investmentTime: getBeijingTime()
-      }
-    ]
+    purchaseAmount: null,
+    purchaseTime: null,
+    doujiaAmounts: []
   }
 }
 
-const addInvestmentAmount = () => {
-  investmentForm.value.amounts.push({
+const addDoujiaAmount = () => {
+  investmentForm.value.doujiaAmounts.push({
     id: null,
     amount: null,
     investmentTime: getBeijingTime()
   })
 }
 
-const addFirstInvestmentAmount = () => {
-  // 添加第一条投资记录
-  investmentForm.value.amounts = [{
-    id: null,
-    amount: null,
-    investmentTime: getBeijingTime()
-  }]
-}
-
-const removeInvestmentAmount = (index) => {
-  investmentForm.value.amounts.splice(index, 1)
+const removeDoujiaAmount = (index) => {
+  investmentForm.value.doujiaAmounts.splice(index, 1)
 }
 
 const submitCustomSelection = async () => {
@@ -4349,33 +4415,35 @@ const submitCustomSelection = async () => {
     return
   }
   
-  // 验证表单 - 视频备注可以不填，投资记录也可以不填，但不能都为空
-  const hasValidAmount = investmentForm.value.amounts.some(item => 
-    item.amount && item.amount > 0 && item.investmentTime
-  )
-  
-  const hasDescription = investmentForm.value.description && investmentForm.value.description.trim()
-  
-  // 如果既没有备注也没有投资记录，给出提示但允许提交（只要选择了加入自选）
-  if (!hasValidAmount && !hasDescription) {
-    // 只是加入自选状态，不需要必须填写备注或投资记录
-    console.log('用户选择加入自选，但未填写备注或投资记录')
-  }
-  
   customSelectionLoading.value = true
-  
+
   try {
+    const investmentAmounts = []
+
+    if (investmentForm.value.purchaseAmount && investmentForm.value.purchaseAmount > 0 && investmentForm.value.purchaseTime) {
+      investmentAmounts.push({
+        amount: parseFloat(investmentForm.value.purchaseAmount),
+        investmentTime: investmentForm.value.purchaseTime + ':00',
+        type: 'purchase'
+      })
+    }
+
+    investmentForm.value.doujiaAmounts
+      .filter(item => item.amount && item.amount > 0 && item.investmentTime)
+      .forEach(item => {
+        investmentAmounts.push({
+          id: item.id,
+          amount: parseFloat(item.amount),
+          investmentTime: item.investmentTime + ':00',
+          type: 'doujia'
+        })
+      })
+
     const requestData = {
       monitorVideoId: currentMonitorVideo.value.monitorVideo.id,
       joinCustomType: 1,
       description: investmentForm.value.description?.trim() || '',
-      investmentAmounts: investmentForm.value.amounts
-        .filter(item => item.amount && item.amount > 0 && item.investmentTime)
-        .map(item => ({
-          id: item.id,
-          amount: parseFloat(item.amount),
-          investmentTime: item.investmentTime + ':00' // 添加秒数
-        }))
+      investmentAmounts
     }
     
     const result = await monitorApi.updateCustomSelection(requestData)
@@ -5533,6 +5601,80 @@ onUnmounted(() => {
   font-weight: 600;
   color: #059669;
   font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.investment-hoverable {
+  cursor: pointer;
+  border-bottom: 1px dashed #059669;
+}
+
+.investment-hoverable:hover {
+  color: #047857;
+}
+
+.investment-breakdown {
+  min-height: 40px;
+}
+
+.breakdown-list {
+  font-size: 13px;
+}
+
+.breakdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.breakdown-type {
+  color: #374151;
+  font-weight: 500;
+  min-width: 36px;
+}
+
+.breakdown-time {
+  color: #9ca3af;
+  font-size: 12px;
+  flex: 1;
+}
+
+.breakdown-amount {
+  color: #059669;
+  font-weight: 600;
+  font-family: 'Consolas', 'Monaco', monospace;
+  text-align: right;
+}
+
+.breakdown-total {
+  font-weight: 600;
+}
+
+.breakdown-total .breakdown-amount {
+  font-size: 14px;
+}
+
+/* 抖加区域样式 */
+.doujia-section {
+  margin-top: 12px;
+}
+
+.doujia-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.purchase-item {
+  border-left: 3px solid #409EFF;
+}
+
+.doujia-item {
+  border-left: 3px solid #E6A23C;
 }
 
 /* 标签筛选区域样式 */

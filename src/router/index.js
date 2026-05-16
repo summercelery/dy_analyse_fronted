@@ -47,6 +47,12 @@ const routes = [
     name: 'FavoriteAuthor',
     component: () => import('@/views/FavoriteAuthor.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/channel-type',
+    name: 'ChannelTypeManage',
+    component: () => import('@/views/ChannelTypeManage.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

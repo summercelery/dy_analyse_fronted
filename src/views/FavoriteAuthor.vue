@@ -40,6 +40,10 @@
             <el-icon><Star /></el-icon>
             <span>收藏播主</span>
           </el-menu-item>
+          <el-menu-item index="/channel-type" class="menu-item">
+            <el-icon><CollectionTag /></el-icon>
+            <span>频道类型</span>
+          </el-menu-item>
         </el-menu>
       </nav>
 
@@ -59,6 +63,9 @@
             <el-button type="default" @click="resetFilters" size="default">
               重置筛选
             </el-button>
+            <el-button type="success" @click="openImportDialog">
+              导入播主
+            </el-button>
           </div>
           <div class="toolbar-right">
             <div class="search-filter-container">
@@ -67,36 +74,28 @@
                 v-model="searchKeyword"
                 placeholder="搜索播主昵称、描述或标签"
                 :prefix-icon="Search"
-                style="width: 280px;"
+                style="width: 240px;"
                 clearable
                 @input="handleSearch"
               />
               
-              <!-- 筛选条件 -->
-              <el-select 
-                v-model="filters.channelType" 
+              <!-- 筛选条件 - 多选频道 -->
+              <el-select
+                v-model="filters.channelTypeIds"
                 placeholder="全部类型"
                 clearable
-                style="width: 130px;"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                style="width: 160px;"
                 @change="handleFilterChange"
               >
-                <el-option label="美食" value="美食" />
-                <el-option label="美妆" value="美妆" />
-                <el-option label="时尚" value="时尚" />
-                <el-option label="娱乐" value="娱乐" />
-                <el-option label="音乐" value="音乐" />
-                <el-option label="舞蹈" value="舞蹈" />
-                <el-option label="游戏" value="游戏" />
-                <el-option label="科技" value="科技" />
-                <el-option label="教育" value="教育" />
-                <el-option label="旅游" value="旅游" />
-                <el-option label="汽车" value="汽车" />
-                <el-option label="体育" value="体育" />
-                <el-option label="生活" value="生活" />
-                <el-option label="搞笑" value="搞笑" />
-                <el-option label="知识" value="知识" />
-                <el-option label="直播" value="直播" />
-                <el-option label="其他" value="其他" />
+                <el-option
+                  v-for="ch in channelOptions"
+                  :key="ch.id"
+                  :label="ch.name"
+                  :value="ch.id"
+                />
               </el-select>
               
               <el-select 
@@ -131,6 +130,68 @@
                 <el-option label="升序" value="ASC" />
               </el-select>
             </div>
+          </div>
+        </div>
+
+        <!-- 类型标签筛选 -->
+        <div v-if="channelOptions.length > 0" class="tag-filter-section">
+          <div class="tag-filter-row">
+            <div class="tag-filter-content">
+              <div class="filter-group">
+                <span class="filter-group-title">按类型筛选：</span>
+                <el-tag
+                  v-for="ch in channelOptions"
+                  :key="ch.id"
+                  size="large"
+                  :type="filters.channelTypeIds.includes(ch.id) ? 'primary' : 'info'"
+                  :effect="filters.channelTypeIds.includes(ch.id) ? 'dark' : 'light'"
+                  class="filter-tag"
+                  @click="toggleChannelTypeFilter(ch.id)"
+                >
+                  {{ ch.name }}
+                </el-tag>
+              </div>
+            </div>
+            <el-button
+              v-if="filters.channelTypeIds.length > 0"
+              type="text"
+              size="small"
+              @click="clearChannelTypeFilter"
+              class="clear-tags-btn"
+            >
+              清除 ({{ filters.channelTypeIds.length }})
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 等级标签筛选 -->
+        <div class="tag-filter-section">
+          <div class="tag-filter-row">
+            <div class="tag-filter-content">
+              <div class="filter-group">
+                <span class="filter-group-title">按等级筛选：</span>
+                <el-tag
+                  v-for="level in levelOptions"
+                  :key="level.value"
+                  size="large"
+                  :type="filters.authorLevel === level.value ? 'primary' : 'info'"
+                  :effect="filters.authorLevel === level.value ? 'dark' : 'light'"
+                  class="filter-tag"
+                  @click="toggleLevelFilter(level.value)"
+                >
+                  {{ level.label }}
+                </el-tag>
+              </div>
+            </div>
+            <el-button
+              v-if="filters.authorLevel"
+              type="text"
+              size="small"
+              @click="clearLevelFilter"
+              class="clear-tags-btn"
+            >
+              清除筛选 (1)
+            </el-button>
           </div>
         </div>
 
@@ -247,11 +308,20 @@
                 </template>
               </el-table-column>
               
-              <el-table-column prop="channelType" label="类型" width="100" align="center">
+              <el-table-column prop="channels" label="类型" width="180" align="center">
                 <template #default="{ row }">
-                  <el-tag v-if="row.channelType" size="small" type="primary">
-                    {{ row.channelType }}
-                  </el-tag>
+                  <div class="channel-tags-cell" v-if="row.channels && row.channels.length > 0">
+                    <el-tag
+                      v-for="ch in row.channels"
+                      :key="ch.id"
+                      size="small"
+                      :color="ch.color"
+                      effect="dark"
+                      class="channel-mini-tag"
+                    >
+                      {{ ch.name }}
+                    </el-tag>
+                  </div>
                   <span v-else>-</span>
                 </template>
               </el-table-column>
@@ -300,12 +370,12 @@
                 </template>
               </el-table-column>
               
-              <el-table-column prop="totalInvestmentAmount" label="投资总额" width="100">
+              <el-table-column prop="priceAmount" label="报价金额" width="110" align="right">
                 <template #default="{ row }">
-                  <span v-if="row.totalInvestmentAmount" class="investment-amount">
-                    ¥{{ formatInvestmentAmount(row.totalInvestmentAmount) }}
+                  <span v-if="row.priceAmount" class="price-amount">
+                    ¥{{ formatPriceAmount(row.priceAmount) }}
                   </span>
-                  <span v-else class="no-investment">-</span>
+                  <span v-else class="no-price">-</span>
                 </template>
               </el-table-column>
               
@@ -372,31 +442,21 @@
           <el-input :value="currentEditAuthor?.authorNickname || ''" disabled />
         </el-form-item>
         
-        <el-form-item label="频道类型" prop="channelType">
-          <el-select 
-            v-model="editForm.channelType" 
-            placeholder="请选择频道类型"
+        <el-form-item label="频道类型" prop="channelTypeIds">
+          <el-select
+            v-model="editForm.channelTypeIds"
+            placeholder="请选择频道类型（可多选）"
             style="width: 100%"
             clearable
+            multiple
             filterable
-            allow-create
           >
-            <el-option label="美食" value="美食" />
-            <el-option label="美妆" value="美妆" />
-            <el-option label="时尚" value="时尚" />
-            <el-option label="娱乐" value="娱乐" />
-            <el-option label="音乐" value="音乐" />
-            <el-option label="舞蹈" value="舞蹈" />
-            <el-option label="游戏" value="游戏" />
-            <el-option label="科技" value="科技" />
-            <el-option label="教育" value="教育" />
-            <el-option label="旅游" value="旅游" />
-            <el-option label="汽车" value="汽车" />
-            <el-option label="体育" value="体育" />
-            <el-option label="生活" value="生活" />
-            <el-option label="搞笑" value="搞笑" />
-            <el-option label="知识" value="知识" />
-            <el-option label="其他" value="其他" />
+            <el-option
+              v-for="ch in channelOptions"
+              :key="ch.id"
+              :label="ch.name"
+              :value="ch.id"
+            />
           </el-select>
         </el-form-item>
         
@@ -450,8 +510,19 @@
             show-word-limit
           />
         </el-form-item>
+
+        <el-form-item label="报价金额" prop="priceAmount">
+          <el-input-number
+            v-model="editForm.priceAmount"
+            :min="0"
+            :precision="2"
+            :step="100"
+            placeholder="请输入报价金额"
+            style="width: 100%"
+          />
+        </el-form-item>
       </el-form>
-      
+
       <template #footer>
         <el-button @click="closeEditSettingsDialog">取消</el-button>
         <el-button type="primary" @click="confirmEditSettings" :loading="editSettingsLoading">
@@ -484,11 +555,15 @@
               
               <!-- 收藏信息标签（仅在已收藏时显示） -->
               <div v-if="authorIsFavorited && currentFavoriteInfo" class="favorite-tags">
-                <el-tag v-if="currentFavoriteInfo.totalInvestmentAmount" type="success" size="small" class="info-tag investment-tag">
-                  投资总额: ¥{{ formatInvestmentAmount(currentFavoriteInfo.totalInvestmentAmount) }}
-                </el-tag>
-                <el-tag v-if="currentFavoriteInfo.channelType" type="primary" size="small" class="info-tag">
-                  {{ currentFavoriteInfo.channelType }}
+                <el-tag
+                  v-for="ch in (currentFavoriteInfo.channels || [])"
+                  :key="ch.id"
+                  :color="ch.color"
+                  effect="dark"
+                  size="small"
+                  class="info-tag"
+                >
+                  {{ ch.name }}
                 </el-tag>
                 <el-tag 
                   v-if="currentFavoriteInfo.authorLevel" 
@@ -582,31 +657,21 @@
           <el-input :value="currentDetailAuthor?.nickname || ''" disabled />
         </el-form-item>
         
-        <el-form-item label="频道类型" prop="channelType">
-          <el-select 
-            v-model="authorSettingForm.channelType" 
-            placeholder="请选择频道类型"
+        <el-form-item label="频道类型" prop="channelTypeIds">
+          <el-select
+            v-model="authorSettingForm.channelTypeIds"
+            placeholder="请选择频道类型（可多选）"
             style="width: 100%"
             clearable
+            multiple
             filterable
-            allow-create
           >
-            <el-option label="美食" value="美食" />
-            <el-option label="美妆" value="美妆" />
-            <el-option label="时尚" value="时尚" />
-            <el-option label="娱乐" value="娱乐" />
-            <el-option label="音乐" value="音乐" />
-            <el-option label="舞蹈" value="舞蹈" />
-            <el-option label="游戏" value="游戏" />
-            <el-option label="科技" value="科技" />
-            <el-option label="教育" value="教育" />
-            <el-option label="旅游" value="旅游" />
-            <el-option label="汽车" value="汽车" />
-            <el-option label="体育" value="体育" />
-            <el-option label="生活" value="生活" />
-            <el-option label="搞笑" value="搞笑" />
-            <el-option label="知识" value="知识" />
-            <el-option label="其他" value="其他" />
+            <el-option
+              v-for="ch in channelOptions"
+              :key="ch.id"
+              :label="ch.name"
+              :value="ch.id"
+            />
           </el-select>
         </el-form-item>
         
@@ -660,8 +725,19 @@
             show-word-limit
           />
         </el-form-item>
+
+        <el-form-item label="报价金额" prop="priceAmount">
+          <el-input-number
+            v-model="authorSettingForm.priceAmount"
+            :min="0"
+            :precision="2"
+            :step="100"
+            placeholder="请输入报价金额"
+            style="width: 100%"
+          />
+        </el-form-item>
       </el-form>
-      
+
       <template #footer>
         <el-button @click="closeAuthorSettingDialog">取消</el-button>
         <el-button type="primary" @click="confirmAuthorSetting" :loading="favoriteLoading">
@@ -669,14 +745,77 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 导入播主对话框 -->
+    <el-dialog
+      v-model="showImportDialog"
+      title="导入播主"
+      width="560px"
+      :close-on-click-modal="false"
+    >
+      <div class="import-form-label">抖音用户主页链接</div>
+      <el-form :model="importForm" label-width="0" :rules="importFormRules" ref="importFormRef">
+        <el-form-item prop="profileUrl">
+          <el-input
+            v-model="importForm.profileUrl"
+            placeholder="https://www.douyin.com/user/MS4wLjAB..."
+            size="large"
+            clearable
+          />
+        </el-form-item>
+      </el-form>
+      <div class="import-form-tip">粘贴抖音用户主页链接，系统将自动获取播主信息并存入数据库</div>
+
+      <!-- 导入结果展示 -->
+      <div v-if="importResult" class="import-result">
+        <el-divider />
+        <div class="import-result-header">导入结果</div>
+        <div class="author-avatar-section">
+          <el-avatar
+            :src="importResult.authorAvatar"
+            :size="64"
+            class="author-avatar"
+          >
+            <el-icon><User /></el-icon>
+          </el-avatar>
+          <div class="author-basic-info">
+            <h3>{{ importResult.nickname || '未知' }}</h3>
+            <p class="user-id">抖音ID: {{ importResult.userId || 'N/A' }}</p>
+            <div class="author-stats">
+              <span class="stat-item">
+                <el-icon><User /></el-icon>
+                {{ formatAuthorNumber(importResult.followerCount) }} 粉丝
+              </span>
+              <span class="stat-item">
+                <el-icon><Star /></el-icon>
+                {{ formatAuthorNumber(importResult.totalFavorited) }} 获赞
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="import-actions">
+          <el-button type="primary" @click="favoriteImportedAuthor" :loading="importFavoriteLoading">
+            收藏该播主
+          </el-button>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="closeImportDialog">关闭</el-button>
+        <el-button type="primary" @click="confirmImport" :loading="importLoading">
+          开始导入
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { favoriteApi } from '@/api/favorite'
+import { channelTypeApi } from '@/api/channelType'
 import { authApi } from '@/api/auth'
 import { authorApi } from '@/api/author'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -690,7 +829,8 @@ import {
   Headset,
   ArrowDown,
   UserFilled,
-  User
+  User,
+  CollectionTag
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -703,6 +843,25 @@ const searchKeyword = ref('')
 const removingId = ref(null)
 const musicStatistics = ref([])
 const musicStatisticsLoading = ref(false)
+const channelOptions = ref([])
+
+const levelOptions = [
+  { label: '普通', value: 1 },
+  { label: '优质', value: 2 },
+  { label: '顶级', value: 3 }
+]
+
+// 加载频道类型选项
+const loadChannelOptions = async () => {
+  try {
+    const res = await channelTypeApi.getList()
+    if (res.success) {
+      channelOptions.value = res.data || []
+    }
+  } catch (e) {
+    console.error('加载频道类型选项失败:', e)
+  }
+}
 
 // 分页相关
 const currentPage = ref(1)
@@ -711,7 +870,7 @@ const total = ref(0)
 
 // 筛选和排序相关
 const filters = ref({
-  channelType: '',
+  channelTypeIds: [],
   authorLevel: null,
   sortBy: 'create_time',
   sortOrder: 'DESC',
@@ -781,7 +940,7 @@ const loadFavoriteList = async () => {
   try {
     // 构建筛选参数
     const filterParams = {
-      channelType: filters.value.channelType || undefined,
+      channelTypeIds: filters.value.channelTypeIds?.length > 0 ? filters.value.channelTypeIds : undefined,
       authorLevel: filters.value.authorLevel || undefined,
       sortBy: filters.value.sortBy,
       sortOrder: filters.value.sortOrder,
@@ -856,7 +1015,7 @@ const handleFilterChange = () => {
 // 重置筛选条件
 const resetFilters = () => {
   filters.value = {
-    channelType: '',
+    channelTypeIds: [],
     authorLevel: null,
     sortBy: 'create_time',
     sortOrder: 'DESC',
@@ -902,6 +1061,41 @@ const selectMusicFilter = (musicId) => {
 // 清除音乐筛选
 const clearMusicFilter = () => {
   filters.value.musicId = null
+  currentPage.value = 1
+  loadFavoriteList()
+}
+
+// 类型标签筛选
+const toggleChannelTypeFilter = (chId) => {
+  const idx = filters.value.channelTypeIds.indexOf(chId)
+  if (idx >= 0) {
+    filters.value.channelTypeIds.splice(idx, 1)
+  } else {
+    filters.value.channelTypeIds.push(chId)
+  }
+  currentPage.value = 1
+  loadFavoriteList()
+}
+
+const clearChannelTypeFilter = () => {
+  filters.value.channelTypeIds = []
+  currentPage.value = 1
+  loadFavoriteList()
+}
+
+// 等级标签筛选
+const toggleLevelFilter = (level) => {
+  if (filters.value.authorLevel === level) {
+    filters.value.authorLevel = null
+  } else {
+    filters.value.authorLevel = level
+  }
+  currentPage.value = 1
+  loadFavoriteList()
+}
+
+const clearLevelFilter = () => {
+  filters.value.authorLevel = null
   currentPage.value = 1
   loadFavoriteList()
 }
@@ -991,11 +1185,12 @@ const loadAuthorDetailInfo = async (authorId) => {
       authorIsFavorited.value = response.data.id !== null
       if (authorIsFavorited.value) {
         currentFavoriteInfo.value = {
+          channels: response.data.channels || [],
           channelType: response.data.channelType,
           authorLevel: response.data.authorLevel,
           backgroundColor: response.data.backgroundColor,
           remark: response.data.remark,
-          totalInvestmentAmount: response.data.totalInvestmentAmount
+          priceAmount: response.data.priceAmount
         }
       } else {
         currentFavoriteInfo.value = null
@@ -1035,7 +1230,7 @@ const formatAuthorNumber = (num) => {
 }
 
 // 格式化投资金额
-const formatInvestmentAmount = (amount) => {
+const formatPriceAmount = (amount) => {
   if (!amount || amount === 0) return '0'
   const num = parseFloat(amount)
   if (num >= 10000) {
@@ -1133,11 +1328,12 @@ const checkFavoriteStatusAndInfo = async (authorId) => {
         
         if (favoriteItem) {
           currentFavoriteInfo.value = {
+            channels: favoriteItem.channels || [],
             channelType: favoriteItem.channelType,
             authorLevel: favoriteItem.authorLevel,
             backgroundColor: favoriteItem.backgroundColor,
             remark: favoriteItem.remark,
-            totalInvestmentAmount: favoriteItem.totalInvestmentAmount
+            priceAmount: favoriteItem.priceAmount
           }
         } else {
           currentFavoriteInfo.value = null
@@ -1193,12 +1389,12 @@ const toggleAuthorFavorite = async () => {
 
 // 打开播主设置对话框
 const openAuthorSettingDialog = () => {
-  // 重置表单
   authorSettingForm.value = {
-    channelType: currentDetailAuthor.value?.channelType || '',
-    authorLevel: currentDetailAuthor.value?.authorLevel || 1,
-    backgroundColor: currentDetailAuthor.value?.backgroundColor || '',
-    remark: ''
+    channelTypeIds: [],
+    authorLevel: 1,
+    backgroundColor: '',
+    remark: '',
+    priceAmount: null
   }
   showAuthorSettingDialog.value = true
 }
@@ -1207,10 +1403,11 @@ const openAuthorSettingDialog = () => {
 const showEditSettingsDialog = ref(false)
 const editFormRef = ref(null)
 const editForm = ref({
-  channelType: '',
+  channelTypeIds: [],
   authorLevel: 1,
   backgroundColor: '',
-  remark: ''
+  remark: '',
+  priceAmount: null
 })
 const currentEditAuthor = ref(null)
 const editSettingsLoading = ref(false)
@@ -1219,11 +1416,42 @@ const editSettingsLoading = ref(false)
 const showAuthorSettingDialog = ref(false)
 const authorSettingFormRef = ref(null)
 const authorSettingForm = ref({
-  channelType: '',
+  channelTypeIds: [],
   authorLevel: 1,
   backgroundColor: '',
-  remark: ''
+  remark: '',
+  priceAmount: null
 })
+
+// 导入播主相关
+const showImportDialog = ref(false)
+const importLoading = ref(false)
+const importFavoriteLoading = ref(false)
+const importFormRef = ref(null)
+const importForm = ref({
+  profileUrl: ''
+})
+const importResult = ref(null)
+
+const importFormRules = {
+  profileUrl: [
+    { required: true, message: '请输入抖音用户主页链接', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (!value || !value.trim()) {
+          callback(new Error('请输入抖音用户主页链接'))
+          return
+        }
+        if (!/douyin\.com\/user\//.test(value)) {
+          callback(new Error('请输入有效的抖音用户主页链接（需包含 douyin.com/user/）'))
+          return
+        }
+        callback()
+      },
+      trigger: 'blur'
+    }
+  ]
+}
 
 // 适合蓝色文字的背景颜色 - 优雅版
 const backgroundColors = [
@@ -1241,9 +1469,6 @@ const backgroundColors = [
 
 // 编辑表单验证规则
 const editFormRules = {
-  channelType: [
-    { max: 50, message: '频道类型不能超过50个字符', trigger: 'blur' }
-  ],
   backgroundColor: [
     { 
       validator: (rule, value, callback) => {
@@ -1271,9 +1496,6 @@ const editFormRules = {
 
 // 表单验证规则
 const authorSettingRules = {
-  channelType: [
-    { max: 50, message: '频道类型不能超过50个字符', trigger: 'blur' }
-  ],
   backgroundColor: [
     { 
       validator: (rule, value, callback) => {
@@ -1307,22 +1529,27 @@ const authorSettingRules = {
 const closeAuthorSettingDialog = () => {
   showAuthorSettingDialog.value = false
   authorSettingForm.value = {
-    channelType: '',
+    channelTypeIds: [],
     authorLevel: 1,
     backgroundColor: '',
-    remark: ''
+    remark: '',
+    priceAmount: null
   }
 }
 
 // 编辑播主设置相关函数
 const editAuthorSettings = (item) => {
   currentEditAuthor.value = item
-  // 填充表单数据
+  // 填充表单数据 - 从 channels 数组提取 ID
+  const existingIds = (item.channels && item.channels.length > 0)
+    ? item.channels.map(c => c.id)
+    : []
   editForm.value = {
-    channelType: item.channelType || '',
+    channelTypeIds: existingIds,
     authorLevel: item.authorLevel || 1,
     backgroundColor: item.backgroundColor || '',
-    remark: item.remark || ''
+    remark: item.remark || '',
+    priceAmount: item.priceAmount || null
   }
   showEditSettingsDialog.value = true
 }
@@ -1331,10 +1558,11 @@ const closeEditSettingsDialog = () => {
   showEditSettingsDialog.value = false
   currentEditAuthor.value = null
   editForm.value = {
-    channelType: '',
+    channelTypeIds: [],
     authorLevel: 1,
     backgroundColor: '',
-    remark: ''
+    remark: '',
+    priceAmount: null
   }
 }
 
@@ -1435,9 +1663,78 @@ const confirmAuthorSetting = async () => {
   }
 }
 
+// 打开导入对话框
+const openImportDialog = async () => {
+  importForm.value.profileUrl = ''
+  importResult.value = null
+  showImportDialog.value = true
+  await nextTick()
+  importFormRef.value?.clearValidate()
+}
+
+// 关闭导入对话框
+const closeImportDialog = () => {
+  showImportDialog.value = false
+  importForm.value.profileUrl = ''
+  importResult.value = null
+  importFormRef.value?.clearValidate()
+}
+
+// 确认导入
+const confirmImport = async () => {
+  if (!importFormRef.value) return
+
+  try {
+    await importFormRef.value.validate()
+  } catch {
+    return
+  }
+
+  importLoading.value = true
+  try {
+    const response = await authorApi.importAuthor(importForm.value.profileUrl.trim())
+    if (response.code === 200 && response.data) {
+      importResult.value = response.data
+      ElMessage.success('播主信息导入成功')
+    } else {
+      ElMessage.error(response.message || '导入失败')
+      importResult.value = null
+    }
+  } catch (error) {
+    console.error('导入播主失败:', error)
+    ElMessage.error('导入失败，请检查链接是否正确')
+    importResult.value = null
+  } finally {
+    importLoading.value = false
+  }
+}
+
+// 收藏导入的播主
+const favoriteImportedAuthor = async () => {
+  if (!importResult.value?.id) {
+    ElMessage.error('播主信息不完整')
+    return
+  }
+
+  // 打开播主设置对话框，预设播主信息
+  currentDetailAuthor.value = {
+    id: importResult.value.id,
+    userId: importResult.value.userId,
+    nickname: importResult.value.nickname,
+    authorAvatar: importResult.value.authorAvatar,
+    userDesc: importResult.value.userDesc,
+    userUrl: importResult.value.userUrl,
+    followerCount: importResult.value.followerCount,
+    totalFavorited: importResult.value.totalFavorited
+  }
+  authorIsFavorited.value = false
+  openAuthorSettingDialog()
+}
+
 onMounted(() => {
   loadFavoriteList()
   loadMusicStatistics()
+  loadChannelOptions()
 })
 </script>
 
@@ -1593,23 +1890,45 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  padding: 16px 20px;
+  padding: 12px 20px;
   background: #fff;
   border-radius: 12px;
   border: 1px solid #e6e8eb;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1400px) {
   .toolbar {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .toolbar-left,
   .toolbar-right {
-    justify-content: center;
+    justify-content: flex-start;
+  }
+
+  .search-filter-container {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .toolbar-left {
+    flex-wrap: wrap;
+  }
+
+  .search-filter-container {
+    gap: 8px;
+  }
+
+  .search-filter-container .el-input {
+    width: 200px !important;
+  }
+
+  .search-filter-container .el-select {
+    min-width: 70px;
   }
 }
 
@@ -1659,6 +1978,7 @@ onMounted(() => {
   color: #409eff;
   cursor: pointer;
   font-weight: 500;
+  font-size: 14px;
   transition: all 0.3s ease;
   padding: 4px 8px;
   border-radius: 4px;
@@ -1683,9 +2003,9 @@ onMounted(() => {
   -webkit-line-clamp: 2;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.4;
+  line-height: 1.5;
   color: #374151;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   word-break: break-word;
 }
@@ -1782,13 +2102,13 @@ onMounted(() => {
   font-style: italic;
 }
 
-.investment-amount {
+.price-amount {
   font-weight: 600;
   color: #059669;
   font-size: 14px;
 }
 
-.no-investment {
+.no-price {
   color: #9ca3af;
   font-size: 13px;
 }
@@ -2009,19 +2329,29 @@ onMounted(() => {
 .search-filter-container {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1500px) {
   .search-filter-container {
-    gap: 8px;
+    gap: 6px;
   }
-  
+
   .search-filter-container .el-input {
-    width: 240px !important;
+    width: 220px !important;
   }
-  
+
+  .search-filter-container .el-select {
+    min-width: 90px;
+  }
+}
+
+@media (max-width: 768px) {
+  .search-filter-container .el-input {
+    width: 180px !important;
+  }
+
   .search-filter-container .el-select {
     min-width: 80px;
   }
@@ -2139,5 +2469,71 @@ onMounted(() => {
   font-size: 12px;
   opacity: 0.8;
   margin-left: 4px;
+}
+
+/* 导入播主结果样式 */
+.import-result {
+  margin-top: 8px;
+}
+
+.import-result-header {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 16px;
+}
+
+.import-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* 导入播主对话框 - 表单样式 */
+:deep(.el-dialog__title) {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+:deep(.el-form-item__label) {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+:deep(.el-input__inner) {
+  font-size: 14px;
+}
+
+:deep(.el-input__inner::placeholder) {
+  font-size: 13px;
+  color: #b0b5bd;
+}
+
+/* 导入表单额外样式 */
+.import-form-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.import-form-tip {
+  font-size: 13px;
+  color: #909399;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.channel-tags-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.channel-mini-tag {
+  margin: 0;
+  font-size: 11px;
 }
 </style>
