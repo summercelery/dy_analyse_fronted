@@ -40,6 +40,10 @@
             <el-icon><Star /></el-icon>
             <span>收藏播主</span>
           </el-menu-item>
+          <el-menu-item index="/channel-type" class="menu-item">
+            <el-icon><CollectionTag /></el-icon>
+            <span>频道类型</span>
+          </el-menu-item>
         </el-menu>
       </nav>
 
@@ -1892,7 +1896,8 @@ import {
   Share,
   Star,
   StarFilled,
-  User
+  User,
+  CollectionTag
 } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
