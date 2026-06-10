@@ -110,25 +110,6 @@
                 <el-option label="顶级" :value="3" />
               </el-select>
               
-              <el-select 
-                v-model="filters.sortBy" 
-                style="width: 120px;"
-                @change="handleFilterChange"
-              >
-                <el-option label="收藏时间" value="create_time" />
-                <el-option label="粉丝数" value="fans_count" />
-                <el-option label="获赞数" value="digg_count" />
-                <el-option label="播主等级" value="author_level" />
-              </el-select>
-              
-              <el-select 
-                v-model="filters.sortOrder" 
-                style="width: 80px;"
-                @change="handleFilterChange"
-              >
-                <el-option label="降序" value="DESC" />
-                <el-option label="升序" value="ASC" />
-              </el-select>
             </div>
           </div>
         </div>
@@ -139,17 +120,16 @@
             <div class="tag-filter-content">
               <div class="filter-group">
                 <span class="filter-group-title">按类型筛选：</span>
-                <el-tag
-                  v-for="ch in channelOptions"
+                <span
+                  v-for="ch in sortedChannels(channelOptions)"
                   :key="ch.id"
-                  size="large"
-                  :type="filters.channelTypeIds.includes(ch.id) ? 'primary' : 'info'"
-                  :effect="filters.channelTypeIds.includes(ch.id) ? 'dark' : 'light'"
                   class="filter-tag"
+                  :class="{ 'filter-tag-active': filters.channelTypeIds.includes(ch.id) }"
+                  :style="filterChipStyle(ch.color, filters.channelTypeIds.includes(ch.id))"
                   @click="toggleChannelTypeFilter(ch.id)"
                 >
                   {{ ch.name }}
-                </el-tag>
+                </span>
               </div>
             </div>
             <el-button
@@ -247,11 +227,12 @@
                 </template>
               </el-empty>
             </div>
-            <el-table 
+            <el-table
               v-else
-              :data="filteredFavoriteList" 
+              :data="filteredFavoriteList"
               stripe
               style="width: 100%"
+              @sort-change="handleSortChange"
             >
               <el-table-column prop="authorAvatar" label="头像" width="80" align="center">
                 <template #default="{ row }">
@@ -296,45 +277,49 @@
                 </template>
               </el-table-column>
               
-              <el-table-column prop="followerCount" label="粉丝数" width="100" align="right">
+              <el-table-column prop="followerCount" label="粉丝数" width="105" align="right" sortable="custom">
                 <template #default="{ row }">
                   <span class="stat-number">{{ formatNumber(row.followerCount) }}</span>
                 </template>
               </el-table-column>
-              
-              <el-table-column prop="totalFavorited" label="获赞数" width="100" align="right">
+
+              <el-table-column prop="totalFavorited" label="获赞数" width="105" align="right" sortable="custom">
                 <template #default="{ row }">
                   <span class="stat-number">{{ formatNumber(row.totalFavorited) }}</span>
                 </template>
               </el-table-column>
               
-              <el-table-column prop="channels" label="类型" width="180" align="center">
+              <el-table-column prop="authorLevel" label="播主等级" width="100" align="center" sortable="custom">
                 <template #default="{ row }">
-                  <div class="channel-tags-cell" v-if="row.channels && row.channels.length > 0">
-                    <el-tag
-                      v-for="ch in row.channels"
-                      :key="ch.id"
-                      size="small"
-                      :color="ch.color"
-                      effect="dark"
-                      class="channel-mini-tag"
-                    >
-                      {{ ch.name }}
-                    </el-tag>
-                  </div>
-                  <span v-else>-</span>
-                </template>
-              </el-table-column>
-              
-              <el-table-column prop="authorLevel" label="播主等级" width="100" align="center">
-                <template #default="{ row }">
-                  <el-tag 
-                    v-if="row.authorLevel" 
-                    :type="getAuthorLevelType(row.authorLevel)" 
+                  <el-tag
+                    v-if="row.authorLevel"
+                    :type="getAuthorLevelType(row.authorLevel)"
                     size="small"
                   >
                     {{ getAuthorLevelText(row.authorLevel) }}
                   </el-tag>
+                  <span v-else>-</span>
+                </template>
+              </el-table-column>
+
+              <el-table-column prop="channels" width="180">
+                <template #header>
+                  <span style="display:block; text-align:center">类型</span>
+                </template>
+                <template #default="{ row }">
+                  <div class="channel-tags-cell" v-if="row.channels && row.channels.length > 0">
+                    <span
+                      v-for="ch in sortedChannels(row.channels)"
+                      :key="ch.id"
+                      class="channel-mini-tag"
+                      :class="{ 'channel-mini-tag-hl': filters.channelTypeIds.includes(ch.id) }"
+                      :style="filters.channelTypeIds.includes(ch.id)
+                        ? highlightedPillStyle(ch.color || DEFAULT_CHANNEL_COLOR)
+                        : applyLightPillStyle(ch.color || DEFAULT_CHANNEL_COLOR)"
+                    >
+                      {{ ch.name }}
+                    </span>
+                  </div>
                   <span v-else>-</span>
                 </template>
               </el-table-column>
@@ -555,16 +540,14 @@
               
               <!-- 收藏信息标签（仅在已收藏时显示） -->
               <div v-if="authorIsFavorited && currentFavoriteInfo" class="favorite-tags">
-                <el-tag
-                  v-for="ch in (currentFavoriteInfo.channels || [])"
+                <span
+                  v-for="ch in sortedChannels(currentFavoriteInfo.channels || [])"
                   :key="ch.id"
-                  :color="ch.color"
-                  effect="dark"
-                  size="small"
                   class="info-tag"
+                  :style="applyLightPillStyle(ch.color || DEFAULT_CHANNEL_COLOR)"
                 >
                   {{ ch.name }}
-                </el-tag>
+                </span>
                 <el-tag 
                   v-if="currentFavoriteInfo.authorLevel" 
                   :type="getAuthorLevelType(currentFavoriteInfo.authorLevel)" 
@@ -819,6 +802,7 @@ import { channelTypeApi } from '@/api/channelType'
 import { authApi } from '@/api/auth'
 import { authorApi } from '@/api/author'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { applyLightPillStyle, DEFAULT_CHANNEL_COLOR, getHue, filterChipStyle, highlightedPillStyle } from '@/utils/colorSystem'
 import {
   Refresh,
   Search,
@@ -930,6 +914,18 @@ const getAuthorLevelText = (level) => {
   }
 }
 
+const sortedChannels = (channels) => {
+  if (!channels || channels.length === 0) return channels
+  return [...channels].sort((a, b) => {
+    const ha = getHue(a.color)
+    const hb = getHue(b.color)
+    if (ha === hb) return 0
+    if (!isFinite(ha)) return 1
+    if (!isFinite(hb)) return -1
+    return ha - hb
+  })
+}
+
 const loadFavoriteList = async () => {
   if (!authStore.user?.id) {
     ElMessage.error('用户信息不完整，请重新登录')
@@ -1008,6 +1004,24 @@ const handleSizeChange = (size) => {
 
 // 筛选处理
 const handleFilterChange = () => {
+  currentPage.value = 1
+  loadFavoriteList()
+}
+
+const sortFieldMap = {
+  followerCount: 'fans_count',
+  totalFavorited: 'digg_count',
+  authorLevel: 'author_level',
+}
+
+const handleSortChange = ({ prop, order }) => {
+  if (prop && order) {
+    filters.value.sortBy = sortFieldMap[prop] || 'create_time'
+    filters.value.sortOrder = order === 'ascending' ? 'ASC' : 'DESC'
+  } else {
+    filters.value.sortBy = 'create_time'
+    filters.value.sortOrder = 'DESC'
+  }
   currentPage.value = 1
   loadFavoriteList()
 }
@@ -2368,6 +2382,13 @@ onMounted(() => {
 
 .info-tag {
   margin-right: 0 !important;
+  border-radius: 3px;
+  padding: 1px 6px;
+  display: inline-block;
+  font-weight: 500;
+  line-height: 1.6;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .investment-tag {
@@ -2453,16 +2474,24 @@ onMounted(() => {
 
 .filter-tag {
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   font-size: 14px;
-  padding: 8px 12px;
+  padding: 5px 12px;
   border-radius: 6px;
   user-select: none;
+  display: inline-block;
+  font-weight: 500;
+  border: 1px solid transparent;
+  line-height: 1.6;
 }
 
 .filter-tag:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filter-tag-active {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .tag-count {
@@ -2529,11 +2558,37 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  justify-content: center;
 }
 
 .channel-mini-tag {
   margin: 0;
   font-size: 11px;
+  border-radius: 3px;
+  padding: 1px 6px;
+  display: inline-block;
+  font-weight: 500;
+  line-height: 1.6;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.channel-mini-tag-hl {
+  font-weight: 600;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+/* 排序列三角号跟在文字旁边而非下方 */
+:deep(.el-table th.is-sortable .cell) {
+  display: flex !important;
+  align-items: center;
+  gap: 2px;
+}
+
+:deep(.el-table th.is-sortable.is-right .cell) {
+  justify-content: flex-end;
+}
+
+:deep(.el-table th.is-sortable.is-center .cell) {
+  justify-content: center;
 }
 </style>

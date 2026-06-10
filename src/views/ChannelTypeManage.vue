@@ -50,13 +50,16 @@
         </div>
 
         <el-card class="table-card">
-          <el-table :data="channelList" stripe v-loading="loading">
+          <el-table :data="sortedChannelList" stripe v-loading="loading">
             <el-table-column prop="id" label="ID" width="80" />
             <el-table-column prop="name" label="频道名称" min-width="150">
               <template #default="{ row }">
-                <el-tag :color="row.color" effect="dark" size="large">
+                <span
+                  class="type-preview-pill"
+                  :style="applyLightPillStyle(row.color || DEFAULT_CHANNEL_COLOR)"
+                >
                   {{ row.name }}
-                </el-tag>
+                </span>
               </template>
             </el-table-column>
             <el-table-column prop="color" label="标签颜色" width="120" align="center">
@@ -68,7 +71,6 @@
                 <span v-else class="na-text">-</span>
               </template>
             </el-table-column>
-            <el-table-column prop="sortOrder" label="排序" width="80" align="center" />
             <el-table-column prop="createTime" label="创建时间" width="180">
               <template #default="{ row }">
                 {{ formatTime(row.createTime) }}
@@ -86,7 +88,7 @@
             </el-table-column>
           </el-table>
 
-          <el-empty v-if="!loading && channelList.length === 0" description="暂无频道类型，点击上方按钮新增" />
+          <el-empty v-if="!loading && sortedChannelList.length === 0" description="暂无频道类型，点击上方按钮新增" />
         </el-card>
       </main>
     </div>
@@ -103,24 +105,51 @@
           <el-input v-model="form.name" placeholder="如：美食、科技、旅行" maxlength="50" />
         </el-form-item>
         <el-form-item label="标签颜色" prop="color">
-          <div class="color-picker-row">
-            <el-color-picker v-model="form.color" show-alpha />
-            <el-input v-model="form.color" placeholder="#409EFF" style="width: 140px; margin-left: 12px" />
-            <el-button @click="form.color = ''" size="small" style="margin-left: 8px">清除</el-button>
-          </div>
-          <div class="preset-colors">
+          <div class="family-row">
             <div
-              v-for="c in presetColors"
-              :key="c"
-              class="preset-color-dot"
-              :class="{ active: form.color === c }"
-              :style="{ backgroundColor: c }"
-              @click="form.color = c"
+              v-for="fam in COLOR_FAMILIES"
+              :key="fam.key"
+              class="family-chip"
+              :class="{ active: selectedFamilyKey === fam.key }"
+              @click="selectFamily(fam.key)"
+            >
+              <span class="family-dot" :style="{ backgroundColor: fam.shades[fam.defaultShadeIndex].hex }" />
+              <span class="family-label">{{ fam.label }}</span>
+            </div>
+          </div>
+
+          <div class="shade-row" v-if="selectedFamily">
+            <span class="shade-label">深浅：</span>
+            <div
+              v-for="(shade, idx) in selectedFamily.shades"
+              :key="idx"
+              class="shade-dot"
+              :class="{ active: form.color?.toLowerCase() === shade.hex.toLowerCase() }"
+              :style="{ backgroundColor: shade.hex }"
+              :title="shade.label"
+              @click="selectShade(idx)"
             />
           </div>
-        </el-form-item>
-        <el-form-item label="排序" prop="sortOrder">
-          <el-input-number v-model="form.sortOrder" :min="0" :max="999" />
+
+          <div class="color-footer-row" v-if="form.color && form.name">
+            <div class="tag-preview">
+              <span class="preview-label">预览</span>
+              <span class="preview-pill" :style="applyLightPillStyle(form.color)">
+                {{ form.name }}
+              </span>
+            </div>
+            <div class="footer-divider" />
+            <div class="custom-color">
+              <span class="custom-color-label">自定义</span>
+              <el-color-picker v-model="form.color" size="small" />
+              <el-input
+                v-model="form.color"
+                placeholder="#888d95"
+                size="small"
+                style="width: 110px"
+              />
+            </div>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -134,26 +163,61 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '@/store/auth'
 import { channelTypeApi } from '@/api/channelType'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Headset, Star, CollectionTag, Plus, Refresh } from '@element-plus/icons-vue'
+import {
+  COLOR_FAMILIES,
+  getFamilyByKeyword,
+  getDefaultShade,
+  getFamilyByKey,
+  applyLightPillStyle,
+  DEFAULT_CHANNEL_COLOR,
+  getHue,
+} from '@/utils/colorSystem'
 
 const authStore = useAuthStore()
 
 const loading = ref(false)
 const channelList = ref([])
+
+const sortedChannelList = computed(() => {
+  return [...channelList.value].sort((a, b) => {
+    const ha = getHue(a.color)
+    const hb = getHue(b.color)
+    if (ha === hb) return 0
+    if (!isFinite(ha)) return 1
+    if (!isFinite(hb)) return -1
+    return ha - hb
+  })
+})
 const showDialog = ref(false)
 const isEdit = ref(false)
 const submitLoading = ref(false)
 const formRef = ref(null)
 const editingId = ref(null)
+const selectedFamilyKey = ref('gray')
+const selectedShadeIndex = ref(2)
 
 const form = ref({
   name: '',
   color: '',
-  sortOrder: 0
+})
+
+const selectedFamily = computed(() => getFamilyByKey(selectedFamilyKey.value))
+
+watch(() => form.value.name, (newName) => {
+  if (!newName || !newName.trim()) {
+    selectedFamilyKey.value = 'gray'
+    return
+  }
+  const matched = getFamilyByKeyword(newName.trim())
+  selectedFamilyKey.value = matched
+  if (!isEdit.value) {
+    form.value.color = getDefaultShade(matched)
+  }
 })
 
 const rules = {
@@ -162,13 +226,6 @@ const rules = {
     { max: 50, message: '频道名称不能超过50个字符', trigger: 'blur' }
   ]
 }
-
-const presetColors = [
-  '#409EFF', '#67C23A', '#E6A23C', '#F56C6C',
-  '#909399', '#5470C6', '#91CC75', '#FAC858',
-  '#EE6666', '#73C0DE', '#3BA272', '#FC8452',
-  '#9A60B4', '#EA7CCC', '#00BCD4', '#FF9800'
-]
 
 const loadList = async () => {
   loading.value = true
@@ -190,7 +247,9 @@ const loadList = async () => {
 const openAddDialog = () => {
   isEdit.value = false
   editingId.value = null
-  form.value = { name: '', color: '', sortOrder: 0 }
+  form.value = { name: '', color: '' }
+  selectedFamilyKey.value = 'gray'
+  selectedShadeIndex.value = 2
   showDialog.value = true
 }
 
@@ -200,9 +259,33 @@ const openEditDialog = (row) => {
   form.value = {
     name: row.name,
     color: row.color || '',
-    sortOrder: row.sortOrder || 0
+  }
+  const color = (row.color || '').toLowerCase()
+  const family = COLOR_FAMILIES.find(f =>
+    f.shades.some(s => s.hex.toLowerCase() === color)
+  )
+  if (family) {
+    selectedFamilyKey.value = family.key
+    const idx = family.shades.findIndex(s => s.hex.toLowerCase() === color)
+    selectedShadeIndex.value = idx >= 0 ? idx : family.defaultShadeIndex
+  } else {
+    selectedFamilyKey.value = 'gray'
+    selectedShadeIndex.value = 2
   }
   showDialog.value = true
+}
+
+const selectFamily = (key) => {
+  selectedFamilyKey.value = key
+  selectedShadeIndex.value = getFamilyByKey(key)?.defaultShadeIndex ?? 2
+  form.value.color = getDefaultShade(key)
+}
+
+const selectShade = (idx) => {
+  selectedShadeIndex.value = idx
+  if (selectedFamily.value) {
+    form.value.color = selectedFamily.value.shades[idx].hex
+  }
 }
 
 const handleSubmit = async () => {
@@ -218,7 +301,6 @@ const handleSubmit = async () => {
     const params = {
       name: form.value.name.trim(),
       color: form.value.color || undefined,
-      sortOrder: form.value.sortOrder
     }
 
     let res
@@ -389,37 +471,148 @@ onMounted(() => {
   font-style: italic;
 }
 
-.color-picker-row {
-  display: flex;
-  align-items: center;
-}
-
-.preset-colors {
+/* Color family picker */
+.family-row {
   display: flex;
   gap: 8px;
-  margin-top: 8px;
   flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
-.preset-color-dot {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  border: 2px solid transparent;
+.family-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1.5px solid #e4e7ed;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fff;
+  user-select: none;
+}
+
+.family-chip:hover {
+  border-color: #c0c4cc;
+  background: #f5f7fa;
+}
+
+.family-chip.active {
+  border-color: #409eff;
+  background: #ecf5ff;
+  box-shadow: 0 0 0 1px rgba(64, 158, 255, 0.2);
+}
+
+.family-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.family-label {
+  font-size: 13px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.family-chip.active .family-label {
+  color: #409eff;
+}
+
+/* Shade picker */
+.shade-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.shade-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2.5px solid transparent;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.preset-color-dot:hover {
-  transform: scale(1.2);
-}
-
-.preset-color-dot.active {
-  border-color: #333;
+.shade-dot:hover {
   transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-:deep(.el-tag) {
+.shade-dot.active {
+  border-color: #303133;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.shade-label {
+  font-size: 13px;
+  color: #909399;
+  flex-shrink: 0;
+}
+
+.preview-pill {
   font-size: 14px;
+  border-radius: 4px;
+  padding: 3px 10px;
+  display: inline-block;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.type-preview-pill {
+  font-size: 14px;
+  border-radius: 4px;
+  padding: 3px 10px;
+  display: inline-block;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.color-footer-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #fafbfc;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+}
+
+.footer-divider {
+  width: 1px;
+  height: 28px;
+  background: #e4e7ed;
+  flex-shrink: 0;
+}
+
+.tag-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.preview-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.custom-color {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.custom-color-label {
+  font-size: 12px;
+  color: #909399;
+  flex-shrink: 0;
 }
 </style>
